@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import AuthLayout from '../../layouts/AuthLayout/AuthLayout'
 import Button from '../../components/Button/Button'
 
@@ -14,6 +14,7 @@ const PREFIXES = [
 ]
 
 export default function Login() {
+  const navigate = useNavigate()
   const [role, setRole] = useState<Role>('profesional')
   const [dial, setDial] = useState('+57')
   const [phone, setPhone] = useState('')
@@ -70,7 +71,7 @@ export default function Login() {
       </div>
 
       <div className="mt-6">
-        <Button disabled={!isValid}>
+        <Button disabled={!isValid} onClick={() => navigate('/verificar')}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
             <path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1Z" strokeLinejoin="round" />
           </svg>
