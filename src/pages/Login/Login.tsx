@@ -158,7 +158,7 @@ export default function Login() {
             </div>
           </div>
 
-     
+       
           <div className="mt-6">
             <Button disabled={!isPhoneValid || loading} onClick={enviarCodigo}>
               {loading ? "Enviando..." : "Enviar código"}
