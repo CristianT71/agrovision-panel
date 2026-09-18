@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { SOLICITUDES, type EstadoSolicitud } from './mockSolicitudes'
 import { StatusBadge, PlagaBadge } from '../../components/StatusBadge/StatusBadge'
+import { useNavigate } from 'react-router-dom'
 
 type Filtro = 'Todas' | 'Mis asignadas' | EstadoSolicitud
 
@@ -15,6 +16,7 @@ const FILTROS: Filtro[] = [
 ]
 
 export default function RequestsInbox() {
+  const navigate = useNavigate()
   const [filtro, setFiltro] = useState<Filtro>('Todas')
   const [busqueda, setBusqueda] = useState('')
 
@@ -162,6 +164,7 @@ export default function RequestsInbox() {
               <span className="text-xs text-gray-400">{s.hace}</span>
               <button
                 type="button"
+                onClick={() => navigate(`/solicitudes/${s.id}`)}
                 className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-700 opacity-0 transition hover:border-agro-green hover:text-agro-green group-hover:opacity-100"
               >
                 Ver detalle

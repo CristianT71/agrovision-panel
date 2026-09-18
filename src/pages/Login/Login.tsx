@@ -6,9 +6,6 @@ import axios from 'axios'
 import { authService } from '../../services/auth.service'
 import { guardarSesion, rutaInicial, type Rol } from '../../auth/session'
 
-// Poner en false cuando el backend esté disponible
-const USAR_MOCK = true
-
 type ApiRole = 'admin' | 'agronomo' | 'productor'
 
 const PREFIXES = [
@@ -55,11 +52,7 @@ export default function Login() {
     }
     setLoading(true)
     try {
-      if (USAR_MOCK) {
-        await new Promise((r) => setTimeout(r, 600))
-      } else {
-        await authService.solicitarOtp({ telefono: formattedPhone })
-      }
+      await authService.solicitarOtp({ telefono: formattedPhone })
       setStep('enterOtp')
       setCountdown(30)
     } catch (err: unknown) {
@@ -87,17 +80,14 @@ export default function Login() {
     }
     setLoading(true)
     try {
-      if (USAR_MOCK) {
-        await new Promise((r) => setTimeout(r, 600))
-      } else {
-        const { accessToken } = await authService.validarOtp({
-          telefono: formattedPhone,
-          codigo,
-          rolSeleccionado: mapRoleToApi(role),
-        })
-        localStorage.setItem('token', accessToken)
-      }
+      const { accessToken } = await authService.validarOtp({
+        telefono: formattedPhone,
+        codigo,
+        rolSeleccionado: mapRoleToApi(role),
+      })
+      localStorage.setItem('token', accessToken)
 
+      // TODO: reemplazar por los datos que devuelva el backend
       const esAdmin = role === 'administrador'
       guardarSesion({
         rol: role,
@@ -189,11 +179,6 @@ export default function Login() {
               placeholder="123456"
               className="mt-2 w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm tracking-[0.4em] focus:border-agro-green focus:outline-none"
             />
-            {USAR_MOCK && (
-              <p className="mt-2 text-xs text-gray-400">
-                Modo de prueba: cualquier código de 6 dígitos funciona.
-              </p>
-            )}
           </div>
 
           <div className="mt-4 flex items-center justify-between gap-4">
@@ -241,4 +226,4 @@ export default function Login() {
       </p>
     </AuthLayout>
   )
-}
+}  
