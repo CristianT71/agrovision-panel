@@ -9,7 +9,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         {/* TEMPORAL: apuntando al panel para desarrollo. Volver a "/login" al terminar. */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/" element={<Navigate to="login" replace />} />
 
         <Route path="/login" element={<Login />} />
         <Route path="/solicitar-acceso" element={<RequestAccess />} />
