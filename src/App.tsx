@@ -5,6 +5,8 @@ import PanelLayout from './layouts/PanelLayout/PanelLayout'
 import RequestsInbox from './pages/RequestsInbox/RequestsInbox'
 import RequestDetail from './pages/RequestDetail/RequestDetail'
 import PestCatalog from './pages/PestCatalog/PestCatalog'
+import Profile from './pages/Profile/Profile'
+import Settings from './pages/Settings/Settings'
 
 function App() {
   return (
@@ -19,6 +21,8 @@ function App() {
           <Route path="/solicitudes" element={<RequestsInbox />} />
           <Route path="/solicitudes/:id" element={<RequestDetail />} />
           <Route path='/catalogo' element={<PestCatalog/>} />
+          <Route path="/perfil" element={<Profile />} />
+          <Route path="/ajustes" element={<Settings />} />
         </Route>
       </Routes>
     </BrowserRouter>

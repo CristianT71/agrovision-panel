@@ -33,3 +33,19 @@ export function cerrarSesion() {
 export function rutaInicial(rol: Rol): string {
   return rol === 'administrador' ? '/dashboard' : '/solicitudes'
 }
+
+// Títulos que no cuentan para las iniciales
+const TITULOS = ['dr', 'dra', 'ing', 'lic', 'esp', 'msc', 'phd']
+
+// "Dra. Claudia Ríos" -> "CR"
+export function calcularIniciales(nombre: string): string {
+  const palabras = nombre
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter((p) => !TITULOS.includes(p.replace(/\./g, '').toLowerCase()))
+
+  return palabras
+    .slice(0, 2)
+    .map((p) => p[0].toUpperCase())
+    .join('')
+}

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { obtenerSesion, cerrarSesion, type Rol } from '../../auth/session'
+import { obtenerSesion, cerrarSesion, calcularIniciales, type Rol } from '../../auth/session'
 
 type Item = { to: string; label: string; icon: React.ReactNode }
 
@@ -62,6 +62,8 @@ export default function Sidebar() {
   const rol: Rol = sesion?.rol ?? 'profesional'
   const esAdmin = rol === 'administrador'
   const items = esAdmin ? ITEMS_ADMIN : ITEMS_PROFESIONAL
+
+  const nombre = sesion?.nombre ?? 'Usuario'
 
   // RF-01.8 — invalidar sesión y purgar datos locales
   const salir = () => {
@@ -138,31 +140,35 @@ export default function Sidebar() {
         }`}
       >
         {/* Perfil */}
-        <button
-          type="button"
+        <NavLink
+          to="/perfil"
           title="Mi perfil"
-          className={`flex min-w-0 items-center gap-2.5 rounded-xl px-2 py-1.5 text-left transition hover:bg-[#eaf4ee] ${
-            collapsed ? '' : 'flex-1'
-          }`}
+          className={({ isActive }) =>
+            `flex min-w-0 items-center gap-2.5 rounded-xl px-2 py-1.5 text-left transition hover:bg-[#eaf4ee] ${
+              isActive ? 'bg-[#eaf4ee]' : ''
+            } ${collapsed ? '' : 'flex-1'}`
+          }
         >
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-agro-green text-xs font-semibold text-white">
-            {sesion?.iniciales ?? '??'}
+            {calcularIniciales(nombre)}
           </div>
           {!collapsed && (
             <div className="min-w-0 leading-tight">
-              <p className="truncate text-xs font-semibold text-gray-800">
-                {sesion?.nombre ?? 'Usuario'}
-              </p>
+              <p className="truncate text-xs font-semibold text-gray-800">{nombre}</p>
               <p className="text-[11px] text-gray-400">{esAdmin ? 'Administrador' : 'Profesional'}</p>
             </div>
           )}
-        </button>
+        </NavLink>
 
         {/* Ajustes */}
-        <button
-          type="button"
+        <NavLink
+          to="/ajustes"
           title="Ajustes"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-[#eaf4ee] hover:text-gray-700"
+          className={({ isActive }) =>
+            `flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition hover:bg-[#eaf4ee] hover:text-gray-700 ${
+              isActive ? 'bg-[#eaf4ee] text-agro-green' : 'text-gray-400'
+            }`
+          }
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-4 w-4">
             <circle cx="12" cy="12" r="3" />
@@ -171,7 +177,7 @@ export default function Sidebar() {
               strokeLinecap="round"
             />
           </svg>
-        </button>
+        </NavLink>
 
         {/* Cerrar sesión — RF-01.8 */}
         <button
