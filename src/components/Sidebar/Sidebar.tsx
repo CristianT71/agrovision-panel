@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
+import { obtenerSesion, cerrarSesion, type Rol } from '../../auth/session'
 
 type Item = { to: string; label: string; icon: React.ReactNode }
 
@@ -17,14 +18,56 @@ const iconBook = (
   </svg>
 )
 
+const iconChart = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-5 w-5">
+    <path d="M3 3v18h18" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M7 15l4-5 3 3 4-6" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
+const iconChip = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-5 w-5">
+    <rect x="7" y="7" width="10" height="10" rx="2" />
+    <path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3" strokeLinecap="round" />
+  </svg>
+)
+
+const iconUsers = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-5 w-5">
+    <circle cx="9" cy="8" r="3.2" />
+    <path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5" strokeLinecap="round" />
+    <path d="M16 5a3 3 0 0 1 0 6M17 14.8c2.4.5 4 2.5 4 5.2" strokeLinecap="round" />
+  </svg>
+)
+
 // RF-02.2 — accesos exclusivos del rol Profesional
-const PROFESIONAL_ITEMS: Item[] = [
+const ITEMS_PROFESIONAL: Item[] = [
   { to: '/solicitudes', label: 'Solicitudes', icon: iconInbox },
   { to: '/catalogo', label: 'Catálogo de plagas', icon: iconBook },
 ]
 
+// RF-02.3 — accesos exclusivos del rol Administrador
+const ITEMS_ADMIN: Item[] = [
+  { to: '/dashboard', label: 'Dashboard', icon: iconChart },
+  { to: '/casos', label: 'Bandeja de casos', icon: iconInbox },
+  { to: '/modelos', label: 'Modelos IA', icon: iconChip },
+  { to: '/cuentas', label: 'Cuentas', icon: iconUsers },
+]
+
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false)
+  const navigate = useNavigate()
+
+  const sesion = obtenerSesion()
+  const rol: Rol = sesion?.rol ?? 'profesional'
+  const esAdmin = rol === 'administrador'
+  const items = esAdmin ? ITEMS_ADMIN : ITEMS_PROFESIONAL
+
+  // RF-01.8 — invalidar sesión y purgar datos locales
+  const salir = () => {
+    cerrarSesion()
+    navigate('/login', { replace: true })
+  }
 
   return (
     <aside
@@ -44,7 +87,7 @@ export default function Sidebar() {
           {!collapsed && (
             <div className="leading-tight">
               <p className="text-sm font-bold text-gray-900">AgroVisión</p>
-              <p className="text-xs text-gray-400">Agrónomo</p>
+              <p className="text-xs text-gray-400">{esAdmin ? 'Administrador' : 'Agrónomo'}</p>
             </div>
           )}
         </div>
@@ -67,10 +110,11 @@ export default function Sidebar() {
           </p>
         )}
         <ul className="space-y-1">
-          {PROFESIONAL_ITEMS.map((item) => (
+          {items.map((item) => (
             <li key={item.to}>
               <NavLink
                 to={item.to}
+                title={collapsed ? item.label : undefined}
                 className={({ isActive }) =>
                   `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${
                     isActive
@@ -88,31 +132,59 @@ export default function Sidebar() {
       </nav>
 
       {/* Pie: perfil, ajustes, salir — RF-02.4 */}
-      <div className="flex items-center gap-2 border-t border-gray-100 px-4 py-4">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-agro-green text-xs font-semibold text-white">
-          DC
-        </div>
-        {!collapsed && (
-          <>
-            <div className="flex-1 overflow-hidden leading-tight">
-              <p className="truncate text-xs font-medium text-gray-800">Dra. Claudia...</p>
-              <p className="text-[11px] text-gray-400">Profesional</p>
+      <div
+        className={`flex items-center gap-1 border-t border-gray-100 px-3 py-3 ${
+          collapsed ? 'flex-col' : ''
+        }`}
+      >
+        {/* Perfil */}
+        <button
+          type="button"
+          title="Mi perfil"
+          className={`flex min-w-0 items-center gap-2.5 rounded-xl px-2 py-1.5 text-left transition hover:bg-[#eaf4ee] ${
+            collapsed ? '' : 'flex-1'
+          }`}
+        >
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-agro-green text-xs font-semibold text-white">
+            {sesion?.iniciales ?? '??'}
+          </div>
+          {!collapsed && (
+            <div className="min-w-0 leading-tight">
+              <p className="truncate text-xs font-semibold text-gray-800">
+                {sesion?.nombre ?? 'Usuario'}
+              </p>
+              <p className="text-[11px] text-gray-400">{esAdmin ? 'Administrador' : 'Profesional'}</p>
             </div>
-            <button type="button" className="text-gray-400 hover:text-gray-600">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-4 w-4">
-                <circle cx="12" cy="12" r="3" />
-                <path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 7 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H1a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 2.6 7a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 2.7-1.1V1a2 2 0 1 1 4 0v.1A1.6 1.6 0 0 0 17 2.6a1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0 1.1 2.7H23a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1Z" transform="scale(0.85) translate(2 2)" />
-              </svg>
-            </button>
-            {/* RF-01.8 — cerrar sesión */}
-            <button type="button" className="text-red-400 hover:text-red-600">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-4 w-4">
-                <path d="M10 17l5-5-5-5M15 12H3" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-          </>
-        )}
+          )}
+        </button>
+
+        {/* Ajustes */}
+        <button
+          type="button"
+          title="Ajustes"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-[#eaf4ee] hover:text-gray-700"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-4 w-4">
+            <circle cx="12" cy="12" r="3" />
+            <path
+              d="M12 2v2.5M12 19.5V22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M2 12h2.5M19.5 12H22M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"
+              strokeLinecap="round"
+            />
+          </svg>
+        </button>
+
+        {/* Cerrar sesión — RF-01.8 */}
+        <button
+          type="button"
+          title="Cerrar sesión"
+          onClick={salir}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-red-400 transition hover:bg-red-50 hover:text-red-600"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-4 w-4">
+            <path d="M10 17l5-5-5-5M15 12H3" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
       </div>
     </aside>
   )
