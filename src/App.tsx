@@ -4,6 +4,7 @@ import RequestAccess from './pages/RequestAccess/RequestAccess'
 import PanelLayout from './layouts/PanelLayout/PanelLayout'
 import RequestsInbox from './pages/RequestsInbox/RequestsInbox'
 import RequestDetail from './pages/RequestDetail/RequestDetail'
+import PestCatalog from './pages/PestCatalog/PestCatalog'
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
         <Route element={<PanelLayout />}>
           <Route path="/solicitudes" element={<RequestsInbox />} />
           <Route path="/solicitudes/:id" element={<RequestDetail />} />
+          <Route path='/catalogo' element={<PestCatalog/>} />
         </Route>
       </Routes>
     </BrowserRouter>
