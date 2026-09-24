@@ -106,7 +106,10 @@ export default function Login() {
     }
     setLoading(true)
     try {
-      const { esperaSegundos } = await authService.solicitarOtp({ telefono: formattedPhone })
+      const { esperaSegundos } = await authService.solicitarOtp({
+        telefono: formattedPhone,
+        rolSeleccionado: rolParaApi(role),
+      })
       setStep('enterOtp')
       setCountdown(esperaSegundos ?? 30)
       setTimeout(() => inputsRef.current[0]?.focus(), 50)
