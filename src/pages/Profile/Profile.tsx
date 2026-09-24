@@ -1,6 +1,7 @@
-import { useState } from 'react'
-import { PERFIL, ACCESO, type Perfil } from './mockPerfil'
+import { useQuery } from '@tanstack/react-query'
 import { obtenerSesion, calcularIniciales } from '../../api/auth/session'
+import { agronomosService, clavesAgronomos, type PerfilAgronomo } from '../../api/agronomos/agronomos.service'
+import { mensajeDeError } from '../../api/axios'
 
 /* Iconos de cada fila */
 const ICONOS: Record<string, React.ReactNode> = {
@@ -28,48 +29,45 @@ const ICONOS: Record<string, React.ReactNode> = {
       <path d="M3 10h18M7 15h4" strokeLinecap="round" />
     </>
   ),
-  shield: (
-    <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3Z" strokeLinejoin="round" />
+  shield: <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3Z" strokeLinejoin="round" />,
+  calendar: (
+    <>
+      <rect x="3.5" y="5" width="17" height="16" rx="2" />
+      <path d="M3.5 10h17M8 3v4M16 3v4" strokeLinecap="round" />
+    </>
+  ),
+  inbox: (
+    <>
+      <path d="M3 12h4l2 3h6l2-3h4" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M5 5h14l2 7v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-5l2-7Z" strokeLinejoin="round" />
+    </>
   ),
 }
 
-/* Campos editables de la ficha, en el orden en que se muestran */
-const CAMPOS: { clave: keyof Perfil; etiqueta: string; icono: keyof typeof ICONOS }[] = [
-  { clave: 'nombre', etiqueta: 'Nombre completo', icono: 'user' },
-  { clave: 'telefono', etiqueta: 'Teléfono', icono: 'phone' },
-  { clave: 'correo', etiqueta: 'Correo electrónico', icono: 'mail' },
-  { clave: 'tarjetaProfesional', etiqueta: 'N° tarjeta profesional', icono: 'card' },
-  { clave: 'especialidad', etiqueta: 'Especialidad', icono: 'shield' },
+/* Datos del agrónomo, en el orden en que se muestran */
+const CAMPOS: { etiqueta: string; icono: keyof typeof ICONOS; valor: (p: PerfilAgronomo) => string }[] = [
+  { etiqueta: 'Nombre completo', icono: 'user', valor: (p) => p.nombre },
+  { etiqueta: 'Teléfono', icono: 'phone', valor: (p) => p.telefono },
+  { etiqueta: 'Correo electrónico', icono: 'mail', valor: (p) => p.correo },
+  { etiqueta: 'N° tarjeta profesional', icono: 'card', valor: (p) => p.tarjetaProfesional },
+  { etiqueta: 'Especialidad', icono: 'shield', valor: (p) => p.especialidad },
+  { etiqueta: 'Fecha de alta', icono: 'calendar', valor: (p) => new Date(p.fechaAlta).toLocaleDateString('es-CO') },
+  { etiqueta: 'Casos activos asignados', icono: 'inbox', valor: (p) => String(p.casosActivos) },
 ]
 
 export default function Profile() {
   const sesion = obtenerSesion()
   const esAdmin = sesion?.rol === 'administrador'
 
-  const [perfil, setPerfil] = useState<Perfil>(PERFIL)
-  const [borrador, setBorrador] = useState<Perfil>(PERFIL)
-  const [editando, setEditando] = useState(false)
+  // La cuenta de administrador no tiene ficha de agrónomo: solo se muestra su sesión
+  const perfil = useQuery({
+    queryKey: clavesAgronomos.miPerfil,
+    queryFn: () => agronomosService.miPerfil(),
+    enabled: !esAdmin,
+  })
 
-  const iniciales = calcularIniciales(perfil.nombre)
-
-  const abrirEdicion = () => {
-    setBorrador(perfil)
-    setEditando(true)
-  }
-
-  const cancelar = () => {
-    setBorrador(perfil)
-    setEditando(false)
-  }
-
-  // TODO: reemplazar por PATCH /perfil cuando el backend exponga el endpoint
-  const guardar = () => {
-    setPerfil(borrador)
-    setEditando(false)
-  }
-
-  const cambiar = (clave: keyof Perfil, valor: string) =>
-    setBorrador((prev) => ({ ...prev, [clave]: valor }))
+  const nombre = perfil.data?.nombre ?? sesion?.nombre ?? 'Usuario'
+  const telefono = perfil.data?.telefono ?? sesion?.telefono ?? ''
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -79,51 +77,22 @@ export default function Profile() {
 
       {/* ---------- Información personal ---------- */}
       <section className="mt-6 rounded-2xl bg-white p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="font-semibold text-gray-900">Información personal</h2>
-            <p className="mt-0.5 text-sm text-gray-500">Edita tus datos visibles en el sistema</p>
-          </div>
-
-          {editando ? (
-            <div className="flex shrink-0 gap-2">
-              <button
-                type="button"
-                onClick={cancelar}
-                className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 transition hover:border-gray-300"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={guardar}
-                className="rounded-xl bg-agro-green px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#194b32]"
-              >
-                Guardar
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={abrirEdicion}
-              className="flex shrink-0 items-center gap-2 rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-agro-green hover:text-agro-green"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-4 w-4">
-                <path d="M4 20h4l10-10-4-4L4 16v4Z" strokeLinejoin="round" />
-                <path d="M14 6l4 4" strokeLinecap="round" />
-              </svg>
-              Editar
-            </button>
-          )}
+        <div>
+          <h2 className="font-semibold text-gray-900">Información personal</h2>
+          <p className="mt-0.5 text-sm text-gray-500">
+            {esAdmin
+              ? 'Cuenta de coordinación del sistema'
+              : 'Registrada en tu solicitud de acceso. Para corregirla, contacta al administrador.'}
+          </p>
         </div>
 
         {/* Avatar y rol */}
         <div className="mt-6 flex items-center gap-5">
           <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-agro-green text-2xl font-bold text-white">
-            {iniciales}
+            {calcularIniciales(nombre)}
           </div>
           <div className="min-w-0">
-            <p className="text-xl font-bold text-gray-900">{perfil.nombre}</p>
+            <p className="text-xl font-bold text-gray-900">{nombre}</p>
             <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-md bg-[#e8f7ee] px-2.5 py-1 text-xs font-semibold text-agro-green">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3 w-3">
                 <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3Z" strokeLinejoin="round" />
@@ -134,35 +103,23 @@ export default function Profile() {
         </div>
 
         {/* Campos */}
-        <dl className="mt-6">
-          {CAMPOS.map(({ clave, etiqueta, icono }) => (
-            <div key={clave} className="flex gap-3 border-t border-gray-100 py-4">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.6"
-                className="mt-0.5 h-4 w-4 shrink-0 text-gray-400"
-              >
-                {ICONOS[icono]}
-              </svg>
-              <div className="min-w-0 flex-1">
-                <dt className="text-xs text-gray-400">{etiqueta}</dt>
-                <dd className="mt-0.5">
-                  {editando ? (
-                    <input
-                      value={borrador[clave]}
-                      onChange={(e) => cambiar(clave, e.target.value)}
-                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-agro-green focus:outline-none"
-                    />
-                  ) : (
-                    <span className="font-medium text-gray-900">{perfil[clave]}</span>
-                  )}
-                </dd>
-              </div>
-            </div>
-          ))}
-        </dl>
+        {esAdmin ? (
+          <dl className="mt-6">
+            <Fila etiqueta="Teléfono" icono="phone" valor={telefono} />
+          </dl>
+        ) : perfil.isPending ? (
+          <p className="mt-6 text-sm text-gray-400">Cargando perfil...</p>
+        ) : perfil.isError ? (
+          <p className="mt-6 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
+            {mensajeDeError(perfil.error, 'No se pudo cargar tu perfil.')}
+          </p>
+        ) : (
+          <dl className="mt-6">
+            {CAMPOS.map(({ etiqueta, icono, valor }) => (
+              <Fila key={etiqueta} etiqueta={etiqueta} icono={icono} valor={valor(perfil.data)} />
+            ))}
+          </dl>
+        )}
       </section>
 
       {/* ---------- Seguridad de la cuenta ---------- */}
@@ -176,25 +133,44 @@ export default function Profile() {
         <div className="mt-6 flex items-center justify-between gap-4 border-t border-gray-100 py-4">
           <div className="min-w-0">
             <p className="font-medium text-gray-900">Autenticación por OTP</p>
-            <p className="mt-0.5 text-sm text-gray-500">Código enviado a {perfil.telefono}</p>
+            <p className="mt-0.5 text-sm text-gray-500">Código enviado a {telefono}</p>
           </div>
-          {ACCESO.otpActiva && (
-            <span className="flex shrink-0 items-center gap-1.5 rounded-md bg-[#e8f7ee] px-2.5 py-1 text-xs font-semibold text-agro-green">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" className="h-3 w-3">
-                <path d="M5 12.5l4.5 4.5L19 7" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              Activa
-            </span>
-          )}
+          <span className="flex shrink-0 items-center gap-1.5 rounded-md bg-[#e8f7ee] px-2.5 py-1 text-xs font-semibold text-agro-green">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" className="h-3 w-3">
+              <path d="M5 12.5l4.5 4.5L19 7" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Activa
+          </span>
         </div>
 
+        {/* RNF-02.2 */}
         <div className="border-t border-gray-100 py-4">
-          <p className="font-medium text-gray-900">Último acceso</p>
+          <p className="font-medium text-gray-900">Duración de la sesión</p>
           <p className="mt-0.5 text-sm text-gray-500">
-            {ACCESO.ultimoAcceso} · {ACCESO.ubicacion}
+            Por seguridad, la sesión se cierra automáticamente a los 30 minutos
           </p>
         </div>
       </section>
+    </div>
+  )
+}
+
+function Fila({ etiqueta, icono, valor }: { etiqueta: string; icono: keyof typeof ICONOS; valor: string }) {
+  return (
+    <div className="flex gap-3 border-t border-gray-100 py-4">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        className="mt-0.5 h-4 w-4 shrink-0 text-gray-400"
+      >
+        {ICONOS[icono]}
+      </svg>
+      <div className="min-w-0 flex-1">
+        <dt className="text-xs text-gray-400">{etiqueta}</dt>
+        <dd className="mt-0.5 font-medium text-gray-900">{valor}</dd>
+      </div>
     </div>
   )
 }
