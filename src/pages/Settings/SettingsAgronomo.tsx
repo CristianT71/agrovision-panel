@@ -3,21 +3,17 @@ import Toggle from '../../components/Toggle/Toggle'
 import {
   AJUSTES,
   IDIOMAS,
-  ZONAS_HORARIAS,
-  RETENCIONES,
-  RETENCION_AUDITORIA,
   SISTEMA,
+  ZONAS_HORARIAS,
   type Ajustes,
 } from './mockAjustes'
 import {
   AvisoGuardado,
   Fila,
   InfoSistema,
-  LogAuditoria,
   Selector,
   Subgrupo,
   Tarjeta,
-  
 } from './SettingsUI'
 import { useGuardado } from './useGuardado'
 
@@ -34,15 +30,15 @@ export default function SettingsAgronomo() {
   return (
     <div className="mx-auto max-w-3xl">
       {/* Encabezado */}
-      <h1 className="text-2xl font-bold text-gray-900">Ajustes del sistema</h1>
-      <p className="mt-1 text-sm text-gray-500">Configuración global de la plataforma AgroVisión</p>
+      <h1 className="text-2xl font-bold text-gray-900">Ajustes</h1>
+      <p className="mt-1 text-sm text-gray-500">Preferencias de tu cuenta en AgroVisión</p>
 
       {guardado && <AvisoGuardado />}
 
       {/* ---------- Idioma y región ---------- */}
       <Tarjeta
         titulo="Idioma y región"
-        descripcion="Localización de fechas, números y textos del sistema"
+        descripcion="Localización de fechas, números y textos del panel"
       >
         <Subgrupo icono="globo" titulo="Localización" />
         <Fila etiqueta="Idioma de la interfaz">
@@ -54,7 +50,7 @@ export default function SettingsAgronomo() {
         </Fila>
 
         <Subgrupo icono="reloj" titulo="Zona horaria" />
-        <Fila etiqueta="Zona horaria del servidor">
+        <Fila etiqueta="Zona horaria">
           <Selector
             valor={ajustes.zonaHoraria}
             opciones={ZONAS_HORARIAS}
@@ -65,7 +61,7 @@ export default function SettingsAgronomo() {
 
       {/* ---------- Notificaciones — RF-02.5 ---------- */}
       <Tarjeta
-        titulo="Notificaciones del sistema"
+        titulo="Notificaciones"
         descripcion="Canales y eventos para los que recibes alertas"
       >
         <Subgrupo icono="campana" titulo="Canales" />
@@ -92,30 +88,6 @@ export default function SettingsAgronomo() {
             etiqueta="Nuevas solicitudes asignadas"
           />
         </Fila>
-      </Tarjeta>
-
-      {/* ---------- Retención de datos ---------- */}
-      <Tarjeta
-        titulo="Retención de datos"
-        descripcion="Por cuánto tiempo se almacenan las solicitudes y logs de actividad"
-      >
-        <Subgrupo icono="base" titulo="Políticas de almacenamiento" />
-        <Fila etiqueta="Retención de solicitudes">
-          <Selector
-            valor={ajustes.retencionSolicitudes}
-            opciones={RETENCIONES}
-            onChange={(v) => cambiar('retencionSolicitudes', v)}
-          />
-        </Fila>
-        {/* RNF-01.2 — retención mínima de 2 años, no editable */}
-        <Fila etiqueta="Retención de logs de auditoría">
-          <span className="text-sm text-gray-500">{RETENCION_AUDITORIA}</span>
-        </Fila>
-      </Tarjeta>
-
-      {/* ---------- Auditoría ---------- */}
-      <Tarjeta titulo="Auditoría y cumplimiento">
-        <LogAuditoria />
       </Tarjeta>
 
       <InfoSistema datos={SISTEMA} />
