@@ -3,8 +3,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import AuthLayout from '../../layouts/AuthLayout/AuthLayout'
 import Button from '../../components/Button/Button'
 import axios from 'axios'
-import { authService } from '../../services/auth.service'
-import { guardarSesion, rutaInicial, type Rol } from '../../auth/session'
+import { authService } from '../../api/auth/auth.service'
+import { guardarSesion, rutaInicial, type Rol } from '../../api/auth/session'
 
 type ApiRole = 'admin' | 'agronomo' | 'productor'
 

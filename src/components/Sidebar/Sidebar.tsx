@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { obtenerSesion, cerrarSesion, calcularIniciales, type Rol } from '../../auth/session'
+import { obtenerSesion, cerrarSesion, calcularIniciales, type Rol } from '../../api/auth/session'
 
 type Item = { to: string; label: string; icon: React.ReactNode }
 

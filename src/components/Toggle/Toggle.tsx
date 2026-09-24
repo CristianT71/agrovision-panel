@@ -2,17 +2,20 @@ type ToggleProps = {
   activo: boolean
   onChange: (valor: boolean) => void
   etiqueta: string
+  disabled?: boolean
 }
 
-export default function Toggle({ activo, onChange, etiqueta }: ToggleProps) {
+export default function Toggle({ activo, onChange, etiqueta, disabled = false }: ToggleProps) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={activo}
       aria-label={etiqueta}
+      title={etiqueta}
+      disabled={disabled}
       onClick={() => onChange(!activo)}
-      className={`relative h-6 w-11 shrink-0 rounded-full transition ${
+      className={`relative h-6 w-11 shrink-0 rounded-full transition disabled:cursor-not-allowed disabled:opacity-40 ${
         activo ? 'bg-agro-green' : 'bg-gray-200'
       }`}
     >

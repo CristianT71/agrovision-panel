@@ -6,7 +6,11 @@ import RequestsInbox from './pages/RequestsInbox/RequestsInbox'
 import RequestDetail from './pages/RequestDetail/RequestDetail'
 import PestCatalog from './pages/PestCatalog/PestCatalog'
 import Profile from './pages/Profile/Profile'
-import Settings from './pages/Settings/Settings'
+import Settings from './pages/Settings/SettingsAgronomo'
+import Dashboard from './pages/Dashboard/Dashboard'
+import CasesInbox from './pages/CasesInbox/CasesInbox'
+import AiModels from './pages/AiModels/AiModels'
+import Accounts from './pages/Accounts/Accounts'
 
 function App() {
   return (
@@ -23,6 +27,10 @@ function App() {
           <Route path='/catalogo' element={<PestCatalog/>} />
           <Route path="/perfil" element={<Profile />} />
           <Route path="/ajustes" element={<Settings />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/casos" element={<CasesInbox />} />
+          <Route path="/modelos" element={<AiModels />} />
+          <Route path="/cuentas" element={<Accounts />} />
         </Route>
       </Routes>
     </BrowserRouter>

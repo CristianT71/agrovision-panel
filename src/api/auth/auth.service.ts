@@ -1,4 +1,4 @@
-import { api } from "../api/axios";
+import { api } from "../axios";
 
 export interface SolicitarOtpDto { telefono: string }
 export interface ValidarOtpDto { telefono: string; codigo: string; rolSeleccionado: 'admin'|'agronomo'|'productor' }

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { PERFIL, ACCESO, type Perfil } from './mockPerfil'
-import { obtenerSesion, calcularIniciales } from '../../auth/session'
+import { obtenerSesion, calcularIniciales } from '../../api/auth/session'
 
 /* Iconos de cada fila */
 const ICONOS: Record<string, React.ReactNode> = {

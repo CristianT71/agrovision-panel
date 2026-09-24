@@ -1,7 +1,7 @@
 import { Outlet } from 'react-router-dom'
 import Sidebar from '../../components/Sidebar/Sidebar'
 import Topbar from '../../components/Topbar/Topbar'
-import { obtenerSesion, calcularIniciales } from '../../auth/session'
+import { obtenerSesion, calcularIniciales } from '../../api/auth/session'
 
 export default function PanelLayout() {
   const sesion = obtenerSesion()
