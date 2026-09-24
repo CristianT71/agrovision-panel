@@ -1,12 +1,18 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import AuthLayout from '../../layouts/AuthLayout/AuthLayout'
 import Button from '../../components/Button/Button'
-import axios from 'axios'
 import { authService } from '../../api/auth/auth.service'
-import { guardarSesion, rutaInicial, type Rol } from '../../api/auth/session'
-
-type ApiRole = 'admin' | 'agronomo' | 'productor'
+import { agronomosService } from '../../api/agronomos/agronomos.service'
+import { mensajeDeError } from '../../api/axios'
+import {
+  calcularIniciales,
+  guardarSesion,
+  rolDesdeApi,
+  rolParaApi,
+  rutaInicial,
+  type Rol,
+} from '../../api/auth/session'
 
 const PREFIXES = [
   { code: 'co', dial: '+57' },
@@ -18,13 +24,16 @@ const PREFIXES = [
 
 export default function Login() {
   const navigate = useNavigate()
+  const [params] = useSearchParams()
   const [role, setRole] = useState<Rol>('profesional')
   const [dial, setDial] = useState('+57')
   const [phone, setPhone] = useState('')
   const [step, setStep] = useState<'enterPhone' | 'enterOtp'>('enterPhone')
   const [otp, setOtp] = useState('')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(
+    params.get('sesion') === 'expirada' ? 'Tu sesión expiró. Ingresa de nuevo.' : null,
+  )
   const [countdown, setCountdown] = useState(0)
 
   const inputsRef = useRef<Array<HTMLInputElement | null>>([])
@@ -44,8 +53,6 @@ export default function Login() {
       if (timer) clearInterval(timer)
     }
   }, [countdown])
-
-  const mapRoleToApi = (r: Rol): ApiRole => (r === 'profesional' ? 'agronomo' : 'admin')
 
   /* ---------- OTP: escritura secuencial (RF-01.4) ---------- */
 
@@ -99,16 +106,12 @@ export default function Login() {
     }
     setLoading(true)
     try {
-      await authService.solicitarOtp({ telefono: formattedPhone })
+      const { esperaSegundos } = await authService.solicitarOtp({ telefono: formattedPhone })
       setStep('enterOtp')
-      setCountdown(30)
+      setCountdown(esperaSegundos ?? 30)
       setTimeout(() => inputsRef.current[0]?.focus(), 50)
     } catch (err: unknown) {
-      if (axios.isAxiosError(err)) {
-        setError(err.response?.data?.mensaje ?? err.message)
-      } else {
-        setError(String(err ?? 'Error enviando código'))
-      }
+      setError(mensajeDeError(err, 'No se pudo enviar el código.'))
     } finally {
       setLoading(false)
     }
@@ -129,30 +132,32 @@ export default function Login() {
     }
     setLoading(true)
     try {
-      const { accessToken } = await authService.validarOtp({
+      const { accessToken, usuario } = await authService.validarOtp({
         telefono: formattedPhone,
         codigo,
-        rolSeleccionado: mapRoleToApi(role),
+        rolSeleccionado: rolParaApi(role),
       })
-      localStorage.setItem('token', accessToken)
 
-      // TODO: reemplazar por los datos que devuelva el backend
-      const esAdmin = role === 'administrador'
-      guardarSesion({
-        rol: role,
-        nombre: esAdmin ? 'Ing. Andrés Molina' : 'Dra. Claudia Ríos',
-        iniciales: esAdmin ? 'AM' : 'DC',
-        telefono: formattedPhone,
-      })
+      // El rol de la sesión es el que confirma la API, no el que se eligió en pantalla
+      const rol = rolDesdeApi(usuario.rol)
+      if (!rol) {
+        setError('Esta cuenta no tiene acceso al panel administrativo.')
+        return
+      }
+
+      // El agrónomo se muestra con su nombre; la cuenta de administrador no tiene perfil
+      const nombre =
+        rol === 'profesional' ? (await agronomosService.miPerfil(accessToken)).nombre : 'Administrador'
+
+      guardarSesion(
+        { rol, nombre, iniciales: calcularIniciales(nombre), telefono: usuario.telefono },
+        accessToken,
+      )
 
       // RF-01.7 — enrutar según el rol
-      navigate(rutaInicial(role), { replace: true })
+      navigate(rutaInicial(rol), { replace: true })
     } catch (err: unknown) {
-      if (axios.isAxiosError(err)) {
-        setError(err.response?.data?.mensaje ?? err.message)
-      } else {
-        setError(String(err ?? 'Código inválido'))
-      }
+      setError(mensajeDeError(err, 'No se pudo validar el código.'))
     } finally {
       setLoading(false)
     }

@@ -1,10 +1,13 @@
-import { api } from "../axios";
+import { api } from '../axios'
+import type { RolApi } from './session'
 
 export interface SolicitarOtpDto { telefono: string }
-export interface ValidarOtpDto { telefono: string; codigo: string; rolSeleccionado: 'admin'|'agronomo'|'productor' }
-export interface AuthResponse { accessToken: string; usuario: { id: string; telefono: string; rol: string } }
+export interface SolicitarOtpResponse { mensaje: string; esperaSegundos: number }
+export interface ValidarOtpDto { telefono: string; codigo: string; rolSeleccionado: RolApi }
+export interface AuthResponse { accessToken: string; usuario: { id: string; telefono: string; rol: RolApi } }
 
 export const authService = {
-  solicitarOtp: (data: SolicitarOtpDto) => api.post("/auth/solicitar-otp", data).then(r => r.data),
-  validarOtp: (data: ValidarOtpDto) => api.post<AuthResponse>("/auth/validar-otp", data).then(r => r.data),
-};
+  solicitarOtp: (data: SolicitarOtpDto) =>
+    api.post<SolicitarOtpResponse>('/auth/solicitar-otp', data).then((r) => r.data),
+  validarOtp: (data: ValidarOtpDto) => api.post<AuthResponse>('/auth/validar-otp', data).then((r) => r.data),
+}

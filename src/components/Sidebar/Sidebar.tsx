@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { obtenerSesion, cerrarSesion, calcularIniciales, type Rol } from '../../api/auth/session'
 
 type Item = { to: string; label: string; icon: React.ReactNode }
@@ -57,6 +58,7 @@ const ITEMS_ADMIN: Item[] = [
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false)
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
   const sesion = obtenerSesion()
   const rol: Rol = sesion?.rol ?? 'profesional'
@@ -68,6 +70,8 @@ export default function Sidebar() {
   // RF-01.8 — invalidar sesión y purgar datos locales
   const salir = () => {
     cerrarSesion()
+    // Los datos en caché son del usuario que sale: no deben verse en la siguiente sesión
+    queryClient.clear()
     navigate('/login', { replace: true })
   }
 
