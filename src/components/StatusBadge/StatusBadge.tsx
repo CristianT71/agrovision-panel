@@ -1,7 +1,7 @@
-import type { EstadoSolicitud } from '../../pages/RequestsInbox/mockSolicitudes'
+import type { EstadoSolicitud } from '../../api/solicitudes/solicitudes.service'
 
 const COLORES: Record<EstadoSolicitud, string> = {
-  'Pendiente de subir': 'bg-gray-100 text-gray-600',
+  Pendiente: 'bg-gray-100 text-gray-600',
   Enviada: 'bg-blue-50 text-blue-700',
   Asignada: 'bg-amber-50 text-amber-700',
   Resuelta: 'bg-green-50 text-green-700',

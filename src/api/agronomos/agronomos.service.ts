@@ -1,4 +1,5 @@
 import { api } from '../axios'
+import { descargarBlob } from '../descargas'
 
 export type EstadoAgronomo = 'pendiente' | 'activo' | 'inactivo'
 
@@ -22,6 +23,14 @@ export interface PerfilAgronomo {
   fechaAlta: string
   casosActivos: number
   documentos: DocumentoAgronomo[]
+}
+
+// El listado no trae los documentos; se piden con el detalle
+export type AgronomoResumen = Omit<PerfilAgronomo, 'documentos'>
+
+export interface FiltrosAgronomos {
+  estado?: EstadoAgronomo
+  especialidad?: string
 }
 
 export interface RegistroAgronomo {
@@ -67,8 +76,29 @@ export const agronomosService = {
     api
       .get<PerfilAgronomo>('/agronomos/me', token ? { headers: { Authorization: `Bearer ${token}` } } : undefined)
       .then((r) => r.data),
+
+  /* ---------- RF-10 — gestión de agrónomos (solo administrador) ---------- */
+
+  listar: (filtros: FiltrosAgronomos = {}) =>
+    api.get<AgronomoResumen[]>('/agronomos', { params: filtros }).then((r) => r.data),
+  obtener: (id: string) => api.get<PerfilAgronomo>(`/agronomos/${id}`).then((r) => r.data),
+  // RF-10.5 — validación humana del recurso operativo
+  validar: (id: string) => api.patch<AgronomoResumen>(`/agronomos/${id}/validar`).then((r) => r.data),
+  desactivar: (id: string) => api.patch<AgronomoResumen>(`/agronomos/${id}/desactivar`).then((r) => r.data),
+  reactivar: (id: string) => api.patch<AgronomoResumen>(`/agronomos/${id}/reactivar`).then((r) => r.data),
+
+  // RF-10.4 — los documentos de acreditación son privados: se piden con el token y se descargan como blob
+  descargarDocumento: async (agronomoId: string, documento: DocumentoAgronomo) => {
+    const respuesta = await api.get<Blob>(`/agronomos/${agronomoId}/documentos/${documento.id}`, {
+      responseType: 'blob',
+    })
+    descargarBlob(respuesta.data, documento.nombreOriginal)
+  },
 }
 
 export const clavesAgronomos = {
+  todos: ['agronomos'] as const,
   miPerfil: ['agronomos', 'me'] as const,
+  lista: (filtros: FiltrosAgronomos = {}) => ['agronomos', 'lista', filtros] as const,
+  detalle: (id: string) => ['agronomos', 'detalle', id] as const,
 }
