@@ -50,6 +50,16 @@ export const solicitudesService = {
   obtener: (id: string) => api.get<Solicitud>(`/solicitudes/${id}`).then((r) => r.data),
   resolver: (id: string, datos: DatosResolucion) =>
     api.patch<Solicitud>(`/solicitudes/${id}/resolver`, datos).then((r) => r.data),
+  // RF-08.3 — solo administrador. La API notifica al agrónomo y responde 409 si otra persona asignó a la vez.
+  asignar: (id: string, agronomoId: string) =>
+    api
+      .patch<{ message: string; solicitud: Solicitud }>(`/solicitudes/${id}/asignar`, { agronomoId })
+      .then((r) => r.data),
+}
+
+// La API solo acepta asignar (o reasignar) solicitudes en estos estados
+export function puedeAsignarse(estado: EstadoSolicitud): boolean {
+  return estado === 'Enviada' || estado === 'Asignada'
 }
 
 export const clavesSolicitudes = {
