@@ -96,6 +96,7 @@ src/
 - Los errores se muestran con `mensajeDeError(error)`, que lee el mensaje que devuelve la API.
 - Las rutas de cada rol se protegen en `App.tsx` con `<RutaProtegida rol="...">` (RF-02).
 - Las fotos del catálogo se muestran con `urlArchivo(ruta)`, porque se sirven fuera de `/api`.
+- Las fotos de las solicitudes son privadas: se muestran con el componente `FotoSolicitud`, que las descarga con el token.
 
 ## Scripts
 

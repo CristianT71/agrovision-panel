@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
+  ETIQUETAS_ANGULO,
   TIPOS_RESULTADO,
   clavesSolicitudes,
   codigoSolicitud,
@@ -16,10 +17,8 @@ import { mensajeDeError } from '../../api/axios'
 import { StatusBadge } from '../../components/StatusBadge/StatusBadge'
 import Button from '../../components/Button/Button'
 import { formatearFechaHora } from '../../utils/fechas'
+import FotoSolicitud, { Marcador } from '../../components/FotoSolicitud/FotoSolicitud'
 import CanalCoordinacion from './CanalCoordinacion'
-
-// RF-04.2 — ángulos de captura que envía la app
-const ANGULOS = ['Vista general', 'Haz foliar', 'Envés foliar', 'Detalle']
 
 export default function RequestDetail() {
   const navigate = useNavigate()
@@ -28,6 +27,13 @@ export default function RequestDetail() {
   const consulta = useQuery({
     queryKey: clavesSolicitudes.detalle(id),
     queryFn: () => solicitudesService.obtener(id),
+    enabled: Boolean(id),
+  })
+
+  // RF-04.1 — fotos de la captura que envió la app
+  const fotos = useQuery({
+    queryKey: clavesSolicitudes.fotos(id),
+    queryFn: () => solicitudesService.listarFotos(id),
     enabled: Boolean(id),
   })
 
@@ -95,30 +101,44 @@ export default function RequestDetail() {
       <div className="mt-6 grid grid-cols-1 gap-5 xl:grid-cols-[1fr_380px]">
         {/* ---------- Columna izquierda ---------- */}
         <div className="space-y-5">
-          {/* RF-04.1 — galería 2x2; la API todavía no expone las fotos */}
+          {/* RF-04.1 — galería 2x2 con las fotos que subió la app */}
           <section className="rounded-2xl bg-white p-6">
             <h2 className="font-semibold text-gray-900">Galería de fotos</h2>
-            <div className="mt-4 grid grid-cols-2 gap-4">
-              {ANGULOS.map((angulo) => (
-                <figure
-                  key={angulo}
-                  className="relative flex h-56 items-center justify-center overflow-hidden rounded-xl bg-gray-100 text-gray-300"
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-10 w-10">
-                    <rect x="3" y="5" width="18" height="14" rx="2" />
-                    <circle cx="9" cy="10" r="1.8" />
-                    <path d="M21 16l-5-5-8 8" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                  {/* RF-04.2 — ángulo identificado */}
-                  <figcaption className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/40 to-transparent px-3 py-2 text-xs font-medium text-white">
-                    {angulo}
-                  </figcaption>
-                </figure>
-              ))}
-            </div>
-            <p className="mt-3 text-xs text-gray-400">
-              Las fotos de la captura llegarán cuando la API las exponga.
-            </p>
+            {fotos.isPending ? (
+              <div className="mt-4 grid grid-cols-2 gap-4">
+                {[0, 1].map((i) => (
+                  <div key={i} className="h-56 animate-pulse rounded-xl bg-gray-100" />
+                ))}
+              </div>
+            ) : fotos.isError ? (
+              <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
+                {mensajeDeError(fotos.error, 'No se pudieron cargar las fotos.')}
+              </p>
+            ) : fotos.data.length === 0 ? (
+              <p className="mt-4 text-sm text-gray-400">Esta solicitud no tiene fotos.</p>
+            ) : (
+              <div className="mt-4 grid grid-cols-2 gap-4">
+                {fotos.data.map((foto) => (
+                  <figure key={foto.id} className="relative overflow-hidden rounded-xl">
+                    {foto.subida ? (
+                      <FotoSolicitud
+                        solicitudId={s.id}
+                        fotoId={foto.id}
+                        alt={ETIQUETAS_ANGULO[foto.angulo]}
+                        className="h-56 w-full"
+                      />
+                    ) : (
+                      // La app registra la foto primero y sube el archivo después (puede estar sin señal)
+                      <Marcador className="h-56 w-full" texto="La app aún no termina de subir esta foto" />
+                    )}
+                    {/* RF-04.2 — ángulo identificado */}
+                    <figcaption className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-3 py-2 text-xs font-medium text-white">
+                      {ETIQUETAS_ANGULO[foto.angulo]}
+                    </figcaption>
+                  </figure>
+                ))}
+              </div>
+            )}
           </section>
 
           {/* RF-04.5 — formulario de resolución */}

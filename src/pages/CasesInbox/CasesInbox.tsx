@@ -18,6 +18,7 @@ import { haceCuanto } from '../../utils/fechas'
 import AssignModal from './AssignModal'
 import CaseChatDrawer from './CaseChatDrawer'
 import { iniciales } from './iniciales'
+import MiniaturaSolicitud from '../../components/FotoSolicitud/MiniaturaSolicitud'
 
 type Filtro = 'Todas' | EstadoSolicitud
 
@@ -182,13 +183,8 @@ export default function CasesInbox() {
             const nombreAgronomo = s.agronomoId ? (nombres.get(s.agronomoId) ?? null) : null
             return (
               <article key={s.id} className="flex items-center gap-4 rounded-xl bg-white p-4">
-                {/* La API aún no expone las fotos: marcador en su lugar */}
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-300">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-7 w-7">
-                    <path d="M5 19c0-8 5-14 15-14 0 10-6 15-14 15" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M5 19l8-8" strokeLinecap="round" />
-                  </svg>
-                </div>
+                {/* RF-03.6 — imagen de evidencia */}
+                <MiniaturaSolicitud solicitudId={s.id} />
 
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">

@@ -12,6 +12,7 @@ import {
 import { agronomosService, clavesAgronomos } from '../../api/agronomos/agronomos.service'
 import { mensajeDeError } from '../../api/axios'
 import { StatusBadge, PlagaBadge } from '../../components/StatusBadge/StatusBadge'
+import MiniaturaSolicitud from '../../components/FotoSolicitud/MiniaturaSolicitud'
 import { haceCuanto } from '../../utils/fechas'
 
 type Filtro = 'Todas' | 'Mis asignadas' | EstadoSolicitud
@@ -163,10 +164,8 @@ export default function RequestsInbox() {
               key={s.id}
               className="group flex items-center gap-4 rounded-xl bg-white p-4 transition hover:shadow-sm"
             >
-              {/* La API aún no expone las fotos: marcador en su lugar */}
-              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-300">
-                <IconoHoja className="h-7 w-7" />
-              </div>
+              {/* RF-03.6 — imagen de evidencia */}
+              <MiniaturaSolicitud solicitudId={s.id} />
 
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
@@ -210,14 +209,5 @@ export default function RequestsInbox() {
         )}
       </div>
     </div>
-  )
-}
-
-function IconoHoja({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className={className}>
-      <path d="M5 19c0-8 5-14 15-14 0 10-6 15-14 15" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M5 19l8-8" strokeLinecap="round" />
-    </svg>
   )
 }

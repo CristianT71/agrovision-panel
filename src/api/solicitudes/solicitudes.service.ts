@@ -31,6 +31,25 @@ export interface Solicitud {
   fechaResolucion: string | null
 }
 
+// RF-04.2 — ángulo con el que la app tomó cada foto
+export type AnguloFoto = 'GENERAL' | 'HAZ' | 'ENVES' | 'DETALLE'
+
+export const ETIQUETAS_ANGULO: Record<AnguloFoto, string> = {
+  GENERAL: 'Vista general',
+  HAZ: 'Haz foliar',
+  ENVES: 'Envés foliar',
+  DETALLE: 'Detalle',
+}
+
+// La API nunca expone la ruta del archivo: solo sus datos y si la app ya terminó de subirlo
+export interface FotoSolicitud {
+  id: string
+  angulo: AnguloFoto
+  orden: number
+  tipoMime: string | null
+  subida: boolean
+}
+
 export interface FiltrosSolicitudes {
   estado?: EstadoSolicitud
   agronomoId?: string
@@ -50,6 +69,14 @@ export const solicitudesService = {
   obtener: (id: string) => api.get<Solicitud>(`/solicitudes/${id}`).then((r) => r.data),
   resolver: (id: string, datos: DatosResolucion) =>
     api.patch<Solicitud>(`/solicitudes/${id}/resolver`, datos).then((r) => r.data),
+  // RF-04.1 — fotos de la captura, en el orden en que las tomó la app
+  listarFotos: (id: string) =>
+    api
+      .get<FotoSolicitud[]>(`/solicitudes/${id}/fotos`)
+      .then((r) => [...r.data].sort((a, b) => a.orden - b.orden)),
+  // Las fotos son privadas: se piden con el token y llegan como archivo (blob), no como URL pública
+  descargarFoto: (id: string, fotoId: string) =>
+    api.get<Blob>(`/solicitudes/${id}/fotos/${fotoId}`, { responseType: 'blob' }).then((r) => r.data),
   // RF-08.3 — solo administrador. La API notifica al agrónomo y responde 409 si otra persona asignó a la vez.
   asignar: (id: string, agronomoId: string) =>
     api
@@ -66,6 +93,8 @@ export const clavesSolicitudes = {
   todas: ['solicitudes'] as const,
   lista: (filtros: FiltrosSolicitudes = {}) => ['solicitudes', 'lista', filtros] as const,
   detalle: (id: string) => ['solicitudes', 'detalle', id] as const,
+  fotos: (id: string) => ['solicitudes', 'fotos', id] as const,
+  foto: (id: string, fotoId: string) => ['solicitudes', 'fotos', id, fotoId] as const,
 }
 
 // La API puede enviar la confianza como fracción (0.87) o como porcentaje (87)
