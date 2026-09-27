@@ -1,4 +1,5 @@
 import { api } from '../axios'
+import { descargarBlob } from '../descargas'
 
 // RF-03 — estados tal como los guarda la API
 export const ESTADOS_SOLICITUD = ['Pendiente', 'Enviada', 'Asignada', 'Resuelta', 'Descartada'] as const
@@ -52,6 +53,20 @@ export interface FotoSolicitud {
   subida: boolean
 }
 
+// RF-04.6 — documento adjunto a la resolución (la ruta interna nunca sale de la API)
+export interface AnexoResolucion {
+  id: string
+  nombreOriginal: string
+  tipoMime: string
+  tamanoBytes: number
+  fechaSubida: string
+}
+
+// Deben coincidir con los límites de la API
+export const MAX_ANEXOS_RESOLUCION = 5
+export const MAX_MB_ANEXO = 10
+export const TIPOS_ANEXO = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp']
+
 export interface FiltrosSolicitudes {
   estado?: EstadoSolicitud
   agronomoId?: string
@@ -71,8 +86,27 @@ export const solicitudesService = {
   listar: (filtros: FiltrosSolicitudes = {}) =>
     api.get<Solicitud[]>('/solicitudes', { params: filtros }).then((r) => r.data),
   obtener: (id: string) => api.get<Solicitud>(`/solicitudes/${id}`).then((r) => r.data),
-  resolver: (id: string, datos: DatosResolucion) =>
-    api.patch<Solicitud>(`/solicitudes/${id}/resolver`, datos).then((r) => r.data),
+  // Sin anexos viaja como JSON; con anexos, como multipart (los archivos van en el campo "anexos")
+  resolver: (id: string, datos: DatosResolucion, anexos: File[] = []) => {
+    if (anexos.length === 0) {
+      return api.patch<Solicitud>(`/solicitudes/${id}/resolver`, datos).then((r) => r.data)
+    }
+
+    const formulario = new FormData()
+    formulario.append('tipoResultado', datos.tipoResultado)
+    formulario.append('plagaIdentificada', datos.plagaIdentificada)
+    formulario.append('respuestaProfesional', datos.respuestaProfesional)
+    anexos.forEach((anexo) => formulario.append('anexos', anexo))
+
+    return api.patch<Solicitud>(`/solicitudes/${id}/resolver`, formulario).then((r) => r.data)
+  },
+  // RF-04.6 — anexos de la resolución
+  listarAnexos: (id: string) => api.get<AnexoResolucion[]>(`/solicitudes/${id}/anexos`).then((r) => r.data),
+  // Son privados: se piden con el token como blob y se descargan con un enlace temporal
+  descargarAnexo: async (id: string, anexo: AnexoResolucion) => {
+    const respuesta = await api.get<Blob>(`/solicitudes/${id}/anexos/${anexo.id}`, { responseType: 'blob' })
+    descargarBlob(respuesta.data, anexo.nombreOriginal)
+  },
   // RF-04.1 — fotos de la captura, en el orden en que las tomó la app
   listarFotos: (id: string) =>
     api
@@ -98,6 +132,7 @@ export const clavesSolicitudes = {
   lista: (filtros: FiltrosSolicitudes = {}) => ['solicitudes', 'lista', filtros] as const,
   detalle: (id: string) => ['solicitudes', 'detalle', id] as const,
   fotos: (id: string) => ['solicitudes', 'fotos', id] as const,
+  anexos: (id: string) => ['solicitudes', 'anexos', id] as const,
   foto: (id: string, fotoId: string) => ['solicitudes', 'fotos', id, fotoId] as const,
 }
 

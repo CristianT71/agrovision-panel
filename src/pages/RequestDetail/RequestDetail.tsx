@@ -3,12 +3,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   ETIQUETAS_ANGULO,
+  MAX_ANEXOS_RESOLUCION,
+  MAX_MB_ANEXO,
+  TIPOS_ANEXO,
   TIPOS_RESULTADO,
   clavesSolicitudes,
   codigoSolicitud,
   porcentajeConfianza,
   solicitudesService,
   versionModeloCorta,
+  type AnexoResolucion,
   type Solicitud,
   type TipoResultado,
 } from '../../api/solicitudes/solicitudes.service'
@@ -17,6 +21,7 @@ import { mensajeDeError } from '../../api/axios'
 import { StatusBadge } from '../../components/StatusBadge/StatusBadge'
 import Button from '../../components/Button/Button'
 import { formatearFechaHora } from '../../utils/fechas'
+import { tamanoLegible } from '../../utils/archivos'
 import FotoSolicitud, { Marcador } from '../../components/FotoSolicitud/FotoSolicitud'
 import CanalCoordinacion from './CanalCoordinacion'
 
@@ -263,8 +268,54 @@ function ResolucionLectura({ solicitud: s }: { solicitud: Solicitud }) {
             )}
             {s.fechaResolucion && <span>Resuelta el {formatearFechaHora(s.fechaResolucion)}</span>}
           </div>
+
+          <AnexosLectura solicitudId={s.id} />
         </div>
       </div>
+    </div>
+  )
+}
+
+/* RF-04.6 — anexos de una resolución ya confirmada */
+function AnexosLectura({ solicitudId }: { solicitudId: string }) {
+  const anexos = useQuery({
+    queryKey: clavesSolicitudes.anexos(solicitudId),
+    queryFn: () => solicitudesService.listarAnexos(solicitudId),
+  })
+  const [errorDescarga, setErrorDescarga] = useState<string | null>(null)
+
+  if (!anexos.data || anexos.data.length === 0) return null
+
+  const descargar = async (anexo: AnexoResolucion) => {
+    setErrorDescarga(null)
+    try {
+      await solicitudesService.descargarAnexo(solicitudId, anexo)
+    } catch (error) {
+      setErrorDescarga(mensajeDeError(error, 'No se pudo descargar el anexo.'))
+    }
+  }
+
+  return (
+    <div className="mt-4">
+      <p className="text-xs font-semibold text-[#2f6b4a]">Anexos</p>
+      <ul className="mt-1.5 space-y-1.5">
+        {anexos.data.map((a) => (
+          <li key={a.id}>
+            <button
+              type="button"
+              onClick={() => descargar(a)}
+              className="flex items-center gap-2 text-xs text-agro-green hover:underline"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-3.5 w-3.5">
+                <path d="M12 4v11M7 10l5 5 5-5M5 20h14" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              {a.nombreOriginal}
+              <span className="text-[#4a8563]">· {tamanoLegible(a.tamanoBytes)}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      {errorDescarga && <p className="mt-1 text-xs text-red-600">{errorDescarga}</p>}
     </div>
   )
 }
@@ -275,17 +326,40 @@ function FormularioResolucion({ solicitud }: { solicitud: Solicitud }) {
   const [tipo, setTipo] = useState<TipoResultado | ''>('')
   const [plaga, setPlaga] = useState(solicitud.plagaIdentificada ?? '')
   const [respuesta, setRespuesta] = useState('')
+  // RF-04.6 — imágenes o reportes PDF adjuntos a la resolución
+  const [anexos, setAnexos] = useState<File[]>([])
+  const [errorAnexos, setErrorAnexos] = useState<string | null>(null)
+
+  const agregarAnexos = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setErrorAnexos(null)
+    const archivos = Array.from(e.target.files ?? [])
+    const validos = archivos.filter((f) => TIPOS_ANEXO.includes(f.type) && f.size <= MAX_MB_ANEXO * 1024 * 1024)
+
+    if (validos.length < archivos.length) {
+      setErrorAnexos(`Se omitieron archivos: solo PDF, JPG, PNG o WEBP de hasta ${MAX_MB_ANEXO} MB.`)
+    }
+
+    const espacio = MAX_ANEXOS_RESOLUCION - anexos.length
+    if (validos.length > espacio) setErrorAnexos(`Máximo ${MAX_ANEXOS_RESOLUCION} anexos por resolución.`)
+
+    setAnexos((prev) => [...prev, ...validos.slice(0, espacio)])
+    e.target.value = ''
+  }
 
   // RF-04.7 — validación íntegra antes de resolver
   const formValido = tipo !== '' && plaga.trim() !== '' && respuesta.trim().length >= 10
 
   const resolver = useMutation({
     mutationFn: () =>
-      solicitudesService.resolver(solicitud.id, {
-        tipoResultado: tipo as TipoResultado,
-        plagaIdentificada: plaga.trim(),
-        respuestaProfesional: respuesta.trim(),
-      }),
+      solicitudesService.resolver(
+        solicitud.id,
+        {
+          tipoResultado: tipo as TipoResultado,
+          plagaIdentificada: plaga.trim(),
+          respuestaProfesional: respuesta.trim(),
+        },
+        anexos,
+      ),
     // Invalida la lista y este detalle: al recargarse pasa a "Resuelta" en solo lectura
     onSuccess: () => queryClient.invalidateQueries({ queryKey: clavesSolicitudes.todas }),
   })
@@ -339,6 +413,56 @@ function FormularioResolucion({ solicitud }: { solicitud: Solicitud }) {
         />
         {respuesta.trim().length > 0 && respuesta.trim().length < 10 && (
           <p className="mt-1.5 text-xs text-amber-600">La respuesta debe tener al menos 10 caracteres.</p>
+        )}
+      </div>
+
+      {/* RF-04.6 — anexos */}
+      <div>
+        <span className="text-sm font-medium text-gray-700">Anexos (opcional)</span>
+        <label
+          className={`mt-2 flex cursor-pointer items-center gap-3 rounded-xl border-2 border-dashed border-[#cfe3d6] px-4 py-3 transition hover:border-agro-green hover:bg-[#f7fbf8] ${
+            anexos.length >= MAX_ANEXOS_RESOLUCION ? 'pointer-events-none opacity-50' : ''
+          }`}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-5 w-5 shrink-0 text-agro-green">
+            <path
+              d="M21 12.8l-8.5 8.5a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 1 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <span className="text-sm text-gray-600">
+            Adjuntar imágenes o reportes PDF
+            <span className="block text-xs text-gray-400">
+              Máx. {MAX_ANEXOS_RESOLUCION} archivos de {MAX_MB_ANEXO} MB
+            </span>
+          </span>
+          <input type="file" accept={TIPOS_ANEXO.join(',')} multiple onChange={agregarAnexos} className="hidden" />
+        </label>
+
+        {errorAnexos && <p className="mt-1.5 text-xs text-amber-600">{errorAnexos}</p>}
+
+        {anexos.length > 0 && (
+          <ul className="mt-2 space-y-1.5">
+            {anexos.map((a, i) => (
+              <li
+                key={`${a.name}-${i}`}
+                className="flex items-center justify-between gap-2 rounded-md bg-[#eef4f0] px-3 py-1.5 text-xs text-gray-700"
+              >
+                <span className="truncate">
+                  {a.name} <span className="text-gray-400">· {tamanoLegible(a.size)}</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setAnexos((prev) => prev.filter((_, j) => j !== i))}
+                  className="shrink-0 text-gray-400 hover:text-red-500"
+                  aria-label={`Quitar ${a.name}`}
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
 
