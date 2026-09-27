@@ -17,6 +17,8 @@ export type TipoResultado = (typeof TIPOS_RESULTADO)[number]
 export interface Solicitud {
   id: string
   productorId: string
+  // La API lo agrega uniendo con productores (la tabla solicitudes solo guarda el id)
+  productorNombre: string | null
   agronomoId: string | null
   estado: EstadoSolicitud
   fecha: string
@@ -54,6 +56,8 @@ export interface FiltrosSolicitudes {
   estado?: EstadoSolicitud
   agronomoId?: string
   soloMias?: boolean
+  // RF-03.5 — la API busca por productor, finca, vereda, municipio o código SOL-…
+  busqueda?: string
 }
 
 // RF-04.7 — la API rechaza respuestas de menos de 10 caracteres

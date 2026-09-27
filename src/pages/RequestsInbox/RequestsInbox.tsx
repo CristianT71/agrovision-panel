@@ -14,6 +14,7 @@ import { mensajeDeError } from '../../api/axios'
 import { StatusBadge, PlagaBadge } from '../../components/StatusBadge/StatusBadge'
 import MiniaturaSolicitud from '../../components/FotoSolicitud/MiniaturaSolicitud'
 import { haceCuanto } from '../../utils/fechas'
+import { useValorRetrasado } from '../../utils/useValorRetrasado'
 
 type Filtro = 'Todas' | 'Mis asignadas' | EstadoSolicitud
 
@@ -38,6 +39,16 @@ export default function RequestsInbox() {
 
   const solicitudes = useMemo(() => consulta.data ?? [], [consulta.data])
 
+  // RF-03.5 — la búsqueda la hace la API (incluye el nombre del productor); los conteos siguen
+  // calculándose sobre la lista completa
+  const busquedaAplicada = useValorRetrasado(busqueda.trim())
+  const resultados = useQuery({
+    queryKey: clavesSolicitudes.lista({ busqueda: busquedaAplicada }),
+    queryFn: () => solicitudesService.listar({ busqueda: busquedaAplicada }),
+    enabled: busquedaAplicada !== '',
+    placeholderData: (anterior) => anterior,
+  })
+
   // RF-03.4 — conteos calculados sobre lo que devolvió la API
   const conteos = useMemo(() => {
     const c: Record<string, number> = { Todas: solicitudes.length }
@@ -48,23 +59,15 @@ export default function RequestsInbox() {
     return c
   }, [solicitudes, miId])
 
-  // RF-03.2, RF-03.3, RF-03.5 — filtros y búsqueda
+  // RF-03.2, RF-03.3 — filtros sobre la lista completa o sobre los resultados de la búsqueda
   const visibles = useMemo(() => {
-    let lista = solicitudes
+    let lista = busquedaAplicada ? (resultados.data ?? []) : solicitudes
 
     if (filtro === 'Mis asignadas') lista = lista.filter((s) => miId && s.agronomoId === miId)
     else if (filtro !== 'Todas') lista = lista.filter((s) => s.estado === filtro)
 
-    const q = busqueda.trim().toLowerCase()
-    if (q) {
-      lista = lista.filter((s) =>
-        [s.finca, s.vereda, s.municipio, codigoSolicitud(s.id), s.id].some((t) =>
-          t.toLowerCase().includes(q),
-        ),
-      )
-    }
     return lista
-  }, [solicitudes, filtro, busqueda, miId])
+  }, [solicitudes, resultados.data, busquedaAplicada, filtro, miId])
 
   const pendientes = conteos['Pendiente'] ?? 0
   const asignadas = conteos['Asignada'] ?? 0
@@ -104,7 +107,7 @@ export default function RequestsInbox() {
         <input
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
-          placeholder="Buscar por finca, municipio o ID..."
+          placeholder="Buscar por productor, finca, municipio o código..."
           className="w-full rounded-xl border border-gray-100 bg-white py-3 pl-11 pr-4 text-sm placeholder:text-gray-400 focus:border-agro-green focus:outline-none"
         />
       </div>
@@ -174,9 +177,9 @@ export default function RequestsInbox() {
                   {s.plagaIdentificada && <PlagaBadge plaga={s.plagaIdentificada} />}
                 </div>
 
-                <p className="mt-1 font-semibold text-gray-900">{s.finca}</p>
+                <p className="mt-1 font-semibold text-gray-900">{s.productorNombre ?? 'Productor sin perfil'}</p>
                 <p className="text-sm text-gray-500">
-                  {s.vereda} · {s.municipio}
+                  {s.finca} · {s.vereda} · {s.municipio}
                 </p>
 
                 {/* Puntaje de inferencia IA */}

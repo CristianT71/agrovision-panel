@@ -93,7 +93,7 @@ export default function RequestDetail() {
             <StatusBadge estado={s.estado} />
           </div>
           <p className="mt-1 text-sm text-gray-500">
-            {s.finca} · {s.municipio}
+            {s.productorNombre ?? 'Productor sin perfil'} · {s.finca} · {s.municipio}
           </p>
         </div>
       </div>
@@ -163,6 +163,10 @@ export default function RequestDetail() {
           <section className="rounded-2xl bg-white p-6">
             <h2 className="font-semibold text-gray-900">Datos del caso</h2>
             <dl className="mt-4 space-y-4 text-sm">
+              <Dato icono="user" etiqueta="Productor">
+                <span className="font-semibold text-gray-900">{s.productorNombre ?? 'Sin perfil registrado'}</span>
+              </Dato>
+
               <Dato icono="home" etiqueta="Finca">
                 <span className="font-semibold text-gray-900">{s.finca}</span>
               </Dato>
@@ -355,6 +359,12 @@ function FormularioResolucion({ solicitud }: { solicitud: Solicitud }) {
 
 /* Fila de dato con icono */
 const ICONOS: Record<string, React.ReactNode> = {
+  user: (
+    <>
+      <circle cx="12" cy="8" r="3.2" />
+      <path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6" strokeLinecap="round" />
+    </>
+  ),
   home: (
     <>
       <path d="M4 11l8-7 8 7" strokeLinecap="round" strokeLinejoin="round" />

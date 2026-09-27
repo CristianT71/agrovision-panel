@@ -15,6 +15,7 @@ import { agronomosService, clavesAgronomos } from '../../api/agronomos/agronomos
 import { mensajeDeError } from '../../api/axios'
 import { StatusBadge, PlagaBadge } from '../../components/StatusBadge/StatusBadge'
 import { haceCuanto } from '../../utils/fechas'
+import { useValorRetrasado } from '../../utils/useValorRetrasado'
 import AssignModal from './AssignModal'
 import CaseChatDrawer from './CaseChatDrawer'
 import { iniciales } from './iniciales'
@@ -23,9 +24,6 @@ import MiniaturaSolicitud from '../../components/FotoSolicitud/MiniaturaSolicitu
 type Filtro = 'Todas' | EstadoSolicitud
 
 const FILTROS: Filtro[] = ['Todas', ...ESTADOS_SOLICITUD]
-
-const normalizar = (t: string) =>
-  t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
 
 export default function CasesInbox() {
   const [filtro, setFiltro] = useState<Filtro>('Todas')
@@ -48,6 +46,15 @@ export default function CasesInbox() {
 
   const solicitudes = useMemo(() => consulta.data ?? [], [consulta.data])
 
+  // RF-03.5 — la búsqueda la hace la API (incluye el nombre del productor)
+  const busquedaAplicada = useValorRetrasado(busqueda.trim())
+  const resultados = useQuery({
+    queryKey: clavesSolicitudes.lista({ busqueda: busquedaAplicada }),
+    queryFn: () => solicitudesService.listar({ busqueda: busquedaAplicada }),
+    enabled: busquedaAplicada !== '',
+    placeholderData: (anterior) => anterior,
+  })
+
   const nombres = useMemo(
     () => new Map((agronomos.data ?? []).map((a) => [a.id, a.nombre])),
     [agronomos.data],
@@ -67,15 +74,9 @@ export default function CasesInbox() {
   const sinAsignar = solicitudes.filter((s) => !s.agronomoId && puedeAsignarse(s.estado)).length
 
   const visibles = useMemo(() => {
-    const q = normalizar(busqueda.trim())
-    return solicitudes.filter((s) => {
-      if (filtro !== 'Todas' && s.estado !== filtro) return false
-      if (!q) return true
-      return [s.finca, s.vereda, s.municipio, codigoSolicitud(s.id), s.id].some((t) =>
-        normalizar(t).includes(q),
-      )
-    })
-  }, [solicitudes, filtro, busqueda])
+    const lista = busquedaAplicada ? (resultados.data ?? []) : solicitudes
+    return filtro === 'Todas' ? lista : lista.filter((s) => s.estado === filtro)
+  }, [solicitudes, resultados.data, busquedaAplicada, filtro])
 
   return (
     <div>
@@ -124,7 +125,7 @@ export default function CasesInbox() {
         <input
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
-          placeholder="Buscar por finca, vereda, municipio o ID..."
+          placeholder="Buscar por productor, finca, vereda, municipio o código..."
           className="w-full rounded-xl border border-gray-100 bg-white py-3 pl-11 pr-4 text-sm placeholder:text-gray-400 focus:border-agro-green focus:outline-none"
         />
       </div>
@@ -193,7 +194,10 @@ export default function CasesInbox() {
                     {s.plagaIdentificada && <PlagaBadge plaga={s.plagaIdentificada} />}
                   </div>
 
-                  <p className="mt-1 font-semibold text-gray-900">{s.finca}</p>
+                  <p className="mt-1 font-semibold text-gray-900">
+                    {s.productorNombre ?? 'Productor sin perfil'}
+                    <span className="font-normal text-gray-500"> · {s.finca}</span>
+                  </p>
 
                   <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500">
                     <span className="inline-flex items-center gap-1">
