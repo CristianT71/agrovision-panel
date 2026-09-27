@@ -267,9 +267,9 @@ export default function Accounts() {
                       )}
                     </td>
 
-                    {/* Acciones: aparecen al pasar el mouse por la fila. Otorgar solo lo hace el productor desde la app. */}
+                    {/* Acciones siempre visibles (en pantallas táctiles no existe "pasar el mouse"). Otorgar solo lo hace el productor desde la app. */}
                     <td className="px-5 py-4">
-                      <div className="flex justify-end gap-2 opacity-0 transition focus-within:opacity-100 group-hover:opacity-100">
+                      <div className="flex justify-end gap-2">
                         {p.estado === 'registrado' && (
                           <button
                             type="button"
@@ -359,7 +359,7 @@ export default function Accounts() {
 
                     {/* RF-10.5 — validación humana y ciclo de vida de la cuenta */}
                     <td className="px-5 py-4">
-                      <div className="flex justify-end opacity-0 transition focus-within:opacity-100 group-hover:opacity-100">
+                      <div className="flex justify-end">
                         {a.estado === 'pendiente' && (
                           <button
                             type="button"

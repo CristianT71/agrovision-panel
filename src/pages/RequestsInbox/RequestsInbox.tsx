@@ -199,7 +199,7 @@ export default function RequestsInbox() {
                 <button
                   type="button"
                   onClick={() => navigate(`/solicitudes/${s.id}`)}
-                  className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-700 opacity-0 transition hover:border-agro-green hover:text-agro-green focus:opacity-100 group-hover:opacity-100"
+                  className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-700 transition hover:border-agro-green hover:text-agro-green"
                 >
                   Ver detalle
                 </button>
