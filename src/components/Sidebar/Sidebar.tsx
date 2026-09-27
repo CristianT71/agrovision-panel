@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { obtenerSesion, cerrarSesion, calcularIniciales, type Rol } from '../../api/auth/session'
+import { authService } from '../../api/auth/auth.service'
+import { obtenerSesion, obtenerToken, cerrarSesion, calcularIniciales, type Rol } from '../../api/auth/session'
 
 type Item = { to: string; label: string; icon: React.ReactNode }
 
@@ -69,6 +70,10 @@ export default function Sidebar() {
 
   // RF-01.8 — invalidar sesión y purgar datos locales
   const salir = () => {
+    // Se avisa a la API sin esperar la respuesta: si falla (sin red), la sesión igual vence por inactividad.
+    // El token se lee antes de borrarlo: axios arma la petición un instante después.
+    const token = obtenerToken()
+    if (token) authService.cerrarSesion(token).catch(() => {})
     cerrarSesion()
     // Los datos en caché son del usuario que sale: no deben verse en la siguiente sesión
     queryClient.clear()
