@@ -45,12 +45,8 @@ Consume la API [agrovision-api](https://github.com/CristianT71/agrovision-api).
 
 2. **Registrar un agrónomo** desde **"¿Eres nuevo? Solicitar acceso"** (no desde el login). Pide al menos un
    documento de acreditación. La cuenta queda pendiente.
-3. **Validar al agrónomo.** Mientras la página *Cuentas* no esté conectada, se hace en la base:
-
-   ```sql
-   UPDATE agronomos SET estado = 'activo' WHERE telefono = '+573009876543';
-   UPDATE usuarios  SET estado = 'activo' WHERE telefono = '+573009876543';
-   ```
+3. **Validar al agrónomo.** Entra como administrador y ve a **Cuentas → pestaña Agrónomos**. Revisa sus soportes
+   con **Ver documentos** y pulsa **Validar** en su fila.
 
 4. **Iniciar sesión**: elige el rol, escribe el número y usa el código OTP que aparece en la **consola de la API**
    (en desarrollo no se envían SMS).
@@ -65,10 +61,14 @@ La sesión dura 30 minutos; al vencer, el panel vuelve al login con el aviso *"T
 | Solicitar acceso | Público | ✅ Conectado (con documentos) |
 | Catálogo de plagas | Profesional | ✅ Conectado (fichas, aval, manejo químico y foto) |
 | Mi perfil | Ambos | ✅ Conectado |
-| Solicitudes y detalle | Profesional | 🟡 Datos de ejemplo — la API aún no recibe solicitudes de la app |
-| Cuentas | Administrador | 🟡 Datos de ejemplo — la API ya está lista para conectarla |
-| Dashboard, Bandeja de casos, Modelos IA | Administrador | 🟡 Datos de ejemplo — faltan sus módulos en la API |
-| Ajustes y notificaciones | Ambos | 🟡 Datos de ejemplo |
+| Solicitudes, detalle y resolución | Profesional | ✅ Conectado (con fotos de la app y canal con administración) |
+| Cuentas | Administrador | ✅ Conectado (validar, desactivar, reactivar, documentos y consentimiento) |
+| Bandeja de casos | Administrador | ✅ Conectado (asignación y chat de coordinación) |
+| Notificaciones | Ambos | ✅ Conectado |
+| Dashboard | Administrador | 🟡 Datos de ejemplo — falta el módulo de telemetría en la API (RF-06) |
+| Modelos IA | Administrador | 🟡 Datos de ejemplo — falta el módulo de modelos en la API (RF-09) |
+| Ajustes | Ambos | 🟡 Datos de ejemplo — la API no tiene endpoint de ajustes |
+| Contacto directo con productor | Administrador | 🟡 Deshabilitado — falta el permiso de contacto en la API (RF-08.8) |
 
 Los archivos `mock*.ts` de cada página contienen los datos de ejemplo; se eliminan al conectar la página.
 
@@ -78,15 +78,21 @@ Los archivos `mock*.ts` de cada página contienen los datos de ejemplo; se elimi
 src/
 ├── api/                    # Comunicación con la API
 │   ├── axios.ts            # Cliente HTTP: token, cierre de sesión en 401 y mensajes de error
+│   ├── descargas.ts        # Descarga de archivos privados (blob) y conversión a data URL
 │   ├── auth/               # Login OTP y sesión (rol, vencimiento del token)
-│   ├── agronomos/          # Registro y perfil
+│   ├── agronomos/          # Registro, perfil y gestión del administrador
+│   ├── productores/        # Gestión del administrador y consentimiento
+│   ├── solicitudes/        # Bandeja, detalle, fotos, resolución y asignación
+│   ├── mensajes/           # Canal de coordinación por caso
+│   ├── notificaciones/     # Menú de notificaciones
 │   └── plagas/             # Catálogo
 ├── components/             # Piezas reutilizables (Button, Input, Sidebar, TagInput...)
 ├── layouts/
 │   ├── AuthLayout/         # Pantallas de acceso
 │   ├── PanelLayout/        # Menú lateral y barra superior
 │   └── RutaProtegida/      # Exige sesión y, si aplica, el rol de la ruta
-└── pages/                  # Una carpeta por pantalla
+├── pages/                  # Una carpeta por pantalla
+└── utils/                  # Formato de fechas y archivos
 ```
 
 ### Convenciones
