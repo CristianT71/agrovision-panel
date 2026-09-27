@@ -51,7 +51,8 @@ Consume la API [agrovision-api](https://github.com/CristianT71/agrovision-api).
 4. **Iniciar sesión**: elige el rol, escribe el número y usa el código OTP que aparece en la **consola de la API**
    (en desarrollo no se envían SMS).
 
-La sesión dura 30 minutos; al vencer, el panel vuelve al login con el aviso *"Tu sesión expiró"*.
+La sesión se cierra tras **30 minutos sin actividad** (y a las 12 horas como máximo); entonces el panel vuelve al
+login con el aviso *"Tu sesión expiró"*. Al pulsar **Cerrar sesión** también se invalida el token en la API.
 
 ## Estado de los módulos
 
@@ -61,7 +62,7 @@ La sesión dura 30 minutos; al vencer, el panel vuelve al login con el aviso *"T
 | Solicitar acceso | Público | ✅ Conectado (con documentos) |
 | Catálogo de plagas | Profesional | ✅ Conectado (fichas, aval, manejo químico y foto) |
 | Mi perfil | Ambos | ✅ Conectado |
-| Solicitudes, detalle y resolución | Profesional | ✅ Conectado (con fotos de la app y canal con administración) |
+| Solicitudes, detalle y resolución | Profesional | ✅ Conectado (fotos de la app, búsqueda por productor, casos similares, anexos y canal con administración) |
 | Cuentas | Administrador | ✅ Conectado (validar, desactivar, reactivar, documentos y consentimiento) |
 | Bandeja de casos | Administrador | ✅ Conectado (asignación y chat de coordinación) |
 | Notificaciones | Ambos | ✅ Conectado |
