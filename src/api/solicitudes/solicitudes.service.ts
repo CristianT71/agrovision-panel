@@ -67,6 +67,20 @@ export const MAX_ANEXOS_RESOLUCION = 5
 export const MAX_MB_ANEXO = 10
 export const TIPOS_ANEXO = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp']
 
+// RF-04.3 — caso resuelto parecido al que se revisa
+export interface CasoSimilar {
+  id: string
+  productorNombre: string | null
+  municipio: string
+  vereda: string
+  finca: string
+  plagaIdentificada: string | null
+  tipoResultado: string | null
+  fechaResolucion: string | null
+  // Porcentaje de 0 a 100
+  similitud: number
+}
+
 export interface FiltrosSolicitudes {
   estado?: EstadoSolicitud
   agronomoId?: string
@@ -100,6 +114,9 @@ export const solicitudesService = {
 
     return api.patch<Solicitud>(`/solicitudes/${id}/resolver`, formulario).then((r) => r.data)
   },
+  // RF-04.3 — los casos resueltos más parecidos (3 por defecto)
+  similares: (id: string, limite = 3) =>
+    api.get<CasoSimilar[]>(`/solicitudes/${id}/similares`, { params: { limite } }).then((r) => r.data),
   // RF-04.6 — anexos de la resolución
   listarAnexos: (id: string) => api.get<AnexoResolucion[]>(`/solicitudes/${id}/anexos`).then((r) => r.data),
   // Son privados: se piden con el token como blob y se descargan con un enlace temporal
@@ -133,6 +150,7 @@ export const clavesSolicitudes = {
   detalle: (id: string) => ['solicitudes', 'detalle', id] as const,
   fotos: (id: string) => ['solicitudes', 'fotos', id] as const,
   anexos: (id: string) => ['solicitudes', 'anexos', id] as const,
+  similares: (id: string) => ['solicitudes', 'similares', id] as const,
   foto: (id: string, fotoId: string) => ['solicitudes', 'fotos', id, fotoId] as const,
 }
 

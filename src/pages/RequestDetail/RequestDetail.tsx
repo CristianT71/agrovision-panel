@@ -24,6 +24,7 @@ import { formatearFechaHora } from '../../utils/fechas'
 import { tamanoLegible } from '../../utils/archivos'
 import FotoSolicitud, { Marcador } from '../../components/FotoSolicitud/FotoSolicitud'
 import CanalCoordinacion from './CanalCoordinacion'
+import CasosSimilares from './CasosSimilares'
 
 export default function RequestDetail() {
   const navigate = useNavigate()
@@ -145,6 +146,9 @@ export default function RequestDetail() {
               </div>
             )}
           </section>
+
+          {/* RF-04.3 — casos similares */}
+          <CasosSimilares solicitudId={s.id} />
 
           {/* RF-04.5 — formulario de resolución */}
           <section className="rounded-2xl bg-white p-6">
