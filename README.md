@@ -67,9 +67,9 @@ login con el aviso *"Tu sesión expiró"*. Al pulsar **Cerrar sesión** también
 | Bandeja de casos | Administrador | ✅ Conectado (asignación y chat de coordinación) |
 | Notificaciones | Ambos | ✅ Conectado |
 | Dashboard | Administrador | 🟡 Datos de ejemplo — falta el módulo de telemetría en la API (RF-06) |
-| Modelos IA | Administrador | 🟡 Datos de ejemplo — falta el módulo de modelos en la API (RF-09) |
+| Modelos IA | Administrador | ✅ Conectado (subida con etiquetas y calibración, métricas, pipeline de canales, kill-switch, auditoría y adopción) — la exportación del dataset (RF-09.6) espera a que la app envíe las imágenes |
 | Ajustes | Ambos | 🟡 Datos de ejemplo — la API no tiene endpoint de ajustes |
-| Contacto directo con productor | Administrador | 🟡 Deshabilitado — falta el permiso de contacto en la API (RF-08.8) |
+| Contacto directo con productor | Ambos | ✅ Conectado (el administrador lo habilita por caso; el agrónomo asignado ve el teléfono en el detalle) |
 
 Los archivos `mock*.ts` de cada página contienen los datos de ejemplo; se eliminan al conectar la página.
 
@@ -86,6 +86,8 @@ src/
 │   ├── solicitudes/        # Bandeja, detalle, fotos, resolución y asignación
 │   ├── mensajes/           # Canal de coordinación por caso
 │   ├── notificaciones/     # Menú de notificaciones
+│   ├── modelos/            # Inventario, subida, métricas, canales y kill-switch
+│   ├── permisos-contacto/  # Contacto directo productor-agrónomo por caso
 │   └── plagas/             # Catálogo
 ├── components/             # Piezas reutilizables (Button, Input, Sidebar, TagInput...)
 ├── layouts/
