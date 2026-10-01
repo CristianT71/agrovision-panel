@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { codigoSolicitud, type Solicitud } from '../../api/solicitudes/solicitudes.service'
-import Toggle from '../../components/Toggle/Toggle'
 import CanalCoordinacion from '../RequestDetail/CanalCoordinacion'
+import PermisoContacto from './PermisoContacto'
 
 type Props = {
   solicitud: Solicitud
@@ -45,16 +45,8 @@ export default function CaseChatDrawer({ solicitud, nombreAgronomo, onClose }: P
           </p>
         </header>
 
-        {/* RF-08.8 — permiso de contacto directo (ACL); la API aún no lo expone */}
-        <div className="flex items-center gap-3 border-b border-gray-100 px-5 py-3">
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-gray-800">Contacto directo con productor</p>
-            <p className="text-xs text-gray-500">
-              Disponible cuando la API exponga el permiso de contacto (RF-08.8)
-            </p>
-          </div>
-          <Toggle activo={false} onChange={() => {}} etiqueta="Contacto directo con productor" disabled />
-        </div>
+        {/* RF-08.8 — permiso de contacto directo (ACL) */}
+        <PermisoContacto solicitud={solicitud} />
 
         {/* RF-08.7 — el canal solo funciona con un agrónomo vinculado */}
         <div className="flex-1 overflow-y-auto">
