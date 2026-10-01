@@ -17,6 +17,7 @@ import {
   type TipoResultado,
 } from '../../api/solicitudes/solicitudes.service'
 import { agronomosService, clavesAgronomos } from '../../api/agronomos/agronomos.service'
+import { clavesPermisosContacto, permisosContactoService } from '../../api/permisos-contacto/permisos-contacto.service'
 import { mensajeDeError } from '../../api/axios'
 import { StatusBadge } from '../../components/StatusBadge/StatusBadge'
 import Button from '../../components/Button/Button'
@@ -175,6 +176,9 @@ export default function RequestDetail() {
               <Dato icono="user" etiqueta="Productor">
                 <span className="font-semibold text-gray-900">{s.productorNombre ?? 'Sin perfil registrado'}</span>
               </Dato>
+
+              {/* Solo el agrónomo asignado puede pedir el contacto */}
+              {esMia && <TelefonoProductor solicitudId={s.id} />}
 
               <Dato icono="home" etiqueta="Finca">
                 <span className="font-semibold text-gray-900">{s.finca}</span>
@@ -517,6 +521,44 @@ const ICONOS: Record<string, React.ReactNode> = {
       <path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3" strokeLinecap="round" />
     </>
   ),
+  phone: (
+    <path
+      d="M6.5 3.5h3l1.5 4-2 1.2a11 11 0 0 0 5.3 5.3l1.2-2 4 1.5v3a2 2 0 0 1-2.2 2A16 16 0 0 1 4.5 5.7a2 2 0 0 1 2-2.2Z"
+      strokeLinejoin="round"
+    />
+  ),
+}
+
+// RF-04.10 — el teléfono solo lo entrega la API si el administrador habilitó el contacto para este agrónomo
+function TelefonoProductor({ solicitudId }: { solicitudId: string }) {
+  const permiso = useQuery({
+    queryKey: clavesPermisosContacto.permiso(solicitudId),
+    queryFn: () => permisosContactoService.obtener(solicitudId),
+  })
+
+  const contacto = useQuery({
+    queryKey: clavesPermisosContacto.contacto(solicitudId),
+    queryFn: () => permisosContactoService.contactoProductor(solicitudId),
+    enabled: permiso.data?.habilitado === true,
+  })
+
+  return (
+    <Dato icono="phone" etiqueta="Teléfono del productor">
+      {permiso.isPending || contacto.isFetching ? (
+        <span className="text-gray-400">Consultando...</span>
+      ) : permiso.isError || contacto.isError ? (
+        <span className="text-red-600">
+          {mensajeDeError(permiso.error ?? contacto.error, 'No se pudo consultar el contacto.')}
+        </span>
+      ) : contacto.data ? (
+        <a href={`tel:${contacto.data.telefono}`} className="font-semibold text-agro-green hover:underline">
+          {contacto.data.telefono}
+        </a>
+      ) : (
+        <span className="text-gray-500">Disponible cuando la administración habilite el contacto directo</span>
+      )}
+    </Dato>
+  )
 }
 
 function Dato({
