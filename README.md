@@ -66,7 +66,7 @@ login con el aviso *"Tu sesión expiró"*. Al pulsar **Cerrar sesión** también
 | Cuentas | Administrador | ✅ Conectado (validar, desactivar, reactivar, documentos y consentimiento) |
 | Bandeja de casos | Administrador | ✅ Conectado (asignación y chat de coordinación) |
 | Notificaciones | Ambos | ✅ Conectado |
-| Dashboard | Administrador | 🟡 Datos de ejemplo — falta el módulo de telemetría en la API (RF-06) |
+| Dashboard | Administrador | ✅ Conectado (RF-06: telemetría de la app por ventana con comparación contra el periodo anterior, tasa de "no reconocido" por versión, correcciones, OTA, adopción de modelos y resoluciones de agrónomos con casos de plaga nueva para reentrenamiento) |
 | Modelos IA | Administrador | ✅ Conectado (subida con etiquetas y calibración, métricas, pipeline de canales, kill-switch, auditoría y adopción) — la exportación del dataset (RF-09.6) espera a que la app envíe las imágenes |
 | Ajustes | Ambos | 🟡 Datos de ejemplo — la API no tiene endpoint de ajustes |
 | Contacto directo con productor | Ambos | ✅ Conectado (el administrador lo habilita por caso; el agrónomo asignado ve el teléfono en el detalle) |
