@@ -67,13 +67,10 @@ export const MAX_ANEXOS_RESOLUCION = 5
 export const MAX_MB_ANEXO = 10
 export const TIPOS_ANEXO = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp']
 
-// RF-04.3 — caso resuelto parecido al que se revisa
+// RF-04.3 — caso resuelto parecido al que se revisa. Es de otro productor (y casi siempre de
+// otro agrónomo): la API no envía su nombre, finca ni ubicación, y su detalle no es accesible.
 export interface CasoSimilar {
   id: string
-  productorNombre: string | null
-  municipio: string
-  vereda: string
-  finca: string
   plagaIdentificada: string | null
   tipoResultado: string | null
   fechaResolucion: string | null

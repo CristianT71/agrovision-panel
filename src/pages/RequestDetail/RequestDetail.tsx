@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import axios from 'axios'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   ETIQUETAS_ANGULO,
@@ -16,7 +17,6 @@ import {
   type Solicitud,
   type TipoResultado,
 } from '../../api/solicitudes/solicitudes.service'
-import { agronomosService, clavesAgronomos } from '../../api/agronomos/agronomos.service'
 import { clavesPermisosContacto, permisosContactoService } from '../../api/permisos-contacto/permisos-contacto.service'
 import { mensajeDeError } from '../../api/axios'
 import { StatusBadge } from '../../components/StatusBadge/StatusBadge'
@@ -44,11 +44,6 @@ export default function RequestDetail() {
     enabled: Boolean(id),
   })
 
-  const perfil = useQuery({
-    queryKey: clavesAgronomos.miPerfil,
-    queryFn: () => agronomosService.miPerfil(),
-  })
-
   const volver = (
     <button
       type="button"
@@ -61,11 +56,27 @@ export default function RequestDetail() {
     </button>
   )
 
+  // La API responde 404 tanto si no existe como si no está asignada a este agrónomo
+  const noEncontrada = axios.isAxiosError(consulta.error) && consulta.error.response?.status === 404
+
   if (consulta.isPending || consulta.isError) {
     return (
       <div className="flex items-start gap-3">
         {volver}
-        {consulta.isError ? (
+        {noEncontrada ? (
+          <div className="flex-1 rounded-xl bg-white px-5 py-10 text-center">
+            <p className="text-sm font-medium text-gray-600">
+              Esta solicitud no existe o no está asignada a ti
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate('/solicitudes')}
+              className="mt-3 rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-700 transition hover:border-agro-green hover:text-agro-green"
+            >
+              Volver a Solicitudes
+            </button>
+          </div>
+        ) : consulta.isError ? (
           <div className="flex-1 rounded-xl bg-red-50 px-5 py-10 text-center text-sm text-red-600">
             <p>{mensajeDeError(consulta.error, 'No se pudo cargar la solicitud.')}</p>
             <button
@@ -86,7 +97,6 @@ export default function RequestDetail() {
   }
 
   const s = consulta.data
-  const esMia = Boolean(perfil.data && s.agronomoId === perfil.data.id)
   const confianza = porcentajeConfianza(s.confianzaIa)
 
   return (
@@ -157,11 +167,11 @@ export default function RequestDetail() {
 
             {s.estado === 'Resuelta' ? (
               <ResolucionLectura solicitud={s} />
-            ) : s.estado === 'Asignada' && esMia ? (
+            ) : s.estado === 'Asignada' ? (
               <FormularioResolucion solicitud={s} />
             ) : (
               <p className="mt-4 rounded-xl bg-[#fafbfa] px-4 py-4 text-sm text-gray-500">
-                {motivoSinFormulario(s, esMia, perfil.isPending)}
+                {motivoSinFormulario(s)}
               </p>
             )}
           </section>
@@ -177,8 +187,8 @@ export default function RequestDetail() {
                 <span className="font-semibold text-gray-900">{s.productorNombre ?? 'Sin perfil registrado'}</span>
               </Dato>
 
-              {/* Solo el agrónomo asignado puede pedir el contacto */}
-              {esMia && <TelefonoProductor solicitudId={s.id} />}
+              {/* La API solo entrega solicitudes asignadas a este agrónomo */}
+              <TelefonoProductor solicitudId={s.id} />
 
               <Dato icono="home" etiqueta="Finca">
                 <span className="font-semibold text-gray-900">{s.finca}</span>
@@ -218,7 +228,7 @@ export default function RequestDetail() {
           </section>
 
           {/* RF-04.9 — canal con administración */}
-          <CanalCoordinacion solicitudId={s.id} yo="agronomo" habilitado={esMia} />
+          <CanalCoordinacion solicitudId={s.id} yo="agronomo" habilitado />
         </div>
       </div>
     </div>
@@ -226,8 +236,7 @@ export default function RequestDetail() {
 }
 
 // Explica por qué no se muestra el formulario de resolución
-function motivoSinFormulario(s: Solicitud, esMia: boolean, cargandoPerfil: boolean): string {
-  if (cargandoPerfil) return 'Verificando la asignación...'
+function motivoSinFormulario(s: Solicitud): string {
   switch (s.estado) {
     case 'Pendiente':
       return 'El productor aún no termina de enviar esta solicitud desde la app.'
@@ -236,7 +245,7 @@ function motivoSinFormulario(s: Solicitud, esMia: boolean, cargandoPerfil: boole
     case 'Descartada':
       return 'La solicitud fue descartada y no admite resolución.'
     default:
-      return esMia ? 'La solicitud no se puede resolver en su estado actual.' : 'Esta solicitud está asignada a otro agrónomo.'
+      return 'La solicitud no se puede resolver en su estado actual.'
   }
 }
 

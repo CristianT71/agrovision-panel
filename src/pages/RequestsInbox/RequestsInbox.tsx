@@ -2,23 +2,29 @@ import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import {
-  ESTADOS_SOLICITUD,
   clavesSolicitudes,
   codigoSolicitud,
   porcentajeConfianza,
   solicitudesService,
   type EstadoSolicitud,
 } from '../../api/solicitudes/solicitudes.service'
-import { agronomosService, clavesAgronomos } from '../../api/agronomos/agronomos.service'
 import { mensajeDeError } from '../../api/axios'
 import { StatusBadge, PlagaBadge } from '../../components/StatusBadge/StatusBadge'
 import MiniaturaSolicitud from '../../components/FotoSolicitud/MiniaturaSolicitud'
 import { haceCuanto } from '../../utils/fechas'
 import { useValorRetrasado } from '../../utils/useValorRetrasado'
 
-type Filtro = 'Todas' | 'Mis asignadas' | EstadoSolicitud
+// La API solo le entrega al agrónomo las solicitudes que el administrador le asignó,
+// así que nunca llegan en "Pendiente" ni "Enviada"
+type Filtro = 'Todas' | 'Por resolver' | 'Resueltas' | 'Descartadas'
 
-const FILTROS: Filtro[] = ['Todas', 'Mis asignadas', ...ESTADOS_SOLICITUD]
+const ESTADO_FILTRO: Record<Exclude<Filtro, 'Todas'>, EstadoSolicitud> = {
+  'Por resolver': 'Asignada',
+  Resueltas: 'Resuelta',
+  Descartadas: 'Descartada',
+}
+
+const FILTROS: Filtro[] = ['Todas', 'Por resolver', 'Resueltas', 'Descartadas']
 
 export default function RequestsInbox() {
   const navigate = useNavigate()
@@ -29,13 +35,6 @@ export default function RequestsInbox() {
     queryKey: clavesSolicitudes.lista(),
     queryFn: () => solicitudesService.listar(),
   })
-
-  // "Mis asignadas" compara con el id de la ficha del agrónomo, no con el del usuario
-  const perfil = useQuery({
-    queryKey: clavesAgronomos.miPerfil,
-    queryFn: () => agronomosService.miPerfil(),
-  })
-  const miId = perfil.data?.id
 
   const solicitudes = useMemo(() => consulta.data ?? [], [consulta.data])
 
@@ -52,25 +51,22 @@ export default function RequestsInbox() {
   // RF-03.4 — conteos calculados sobre lo que devolvió la API
   const conteos = useMemo(() => {
     const c: Record<string, number> = { Todas: solicitudes.length }
-    c['Mis asignadas'] = miId ? solicitudes.filter((s) => s.agronomoId === miId).length : 0
-    for (const estado of ESTADOS_SOLICITUD) {
-      c[estado] = solicitudes.filter((s) => s.estado === estado).length
+    for (const [filtro, estado] of Object.entries(ESTADO_FILTRO)) {
+      c[filtro] = solicitudes.filter((s) => s.estado === estado).length
     }
     return c
-  }, [solicitudes, miId])
+  }, [solicitudes])
 
   // RF-03.2, RF-03.3 — filtros sobre la lista completa o sobre los resultados de la búsqueda
   const visibles = useMemo(() => {
     let lista = busquedaAplicada ? (resultados.data ?? []) : solicitudes
 
-    if (filtro === 'Mis asignadas') lista = lista.filter((s) => miId && s.agronomoId === miId)
-    else if (filtro !== 'Todas') lista = lista.filter((s) => s.estado === filtro)
+    if (filtro !== 'Todas') lista = lista.filter((s) => s.estado === ESTADO_FILTRO[filtro])
 
     return lista
-  }, [solicitudes, resultados.data, busquedaAplicada, filtro, miId])
+  }, [solicitudes, resultados.data, busquedaAplicada, filtro])
 
-  const pendientes = conteos['Pendiente'] ?? 0
-  const asignadas = conteos['Asignada'] ?? 0
+  const porResolver = conteos['Por resolver'] ?? 0
 
   return (
     <div>
@@ -82,14 +78,9 @@ export default function RequestsInbox() {
             Diagnósticos enviados por productores que requieren validación
           </p>
         </div>
-        <div className="flex shrink-0 gap-2">
-          <span className="rounded-lg bg-[#eaf4ee] px-3 py-1.5 text-xs font-medium text-agro-green">
-            {pendientes} pendientes
-          </span>
-          <span className="rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700">
-            {asignadas} asignadas
-          </span>
-        </div>
+        <span className="shrink-0 rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700">
+          {porResolver} por resolver
+        </span>
       </div>
 
       {/* Búsqueda — RF-03.5 */}
@@ -152,9 +143,9 @@ export default function RequestsInbox() {
           </div>
         ) : solicitudes.length === 0 ? (
           <div className="rounded-xl bg-white px-5 py-10 text-center">
-            <p className="text-sm font-medium text-gray-600">Aún no hay solicitudes</p>
+            <p className="text-sm font-medium text-gray-600">No tienes solicitudes asignadas.</p>
             <p className="mt-1 text-sm text-gray-400">
-              Aparecerán cuando los productores las envíen desde la app
+              Aparecerán aquí cuando el administrador te asigne una.
             </p>
           </div>
         ) : visibles.length === 0 ? (
