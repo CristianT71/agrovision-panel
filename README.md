@@ -68,6 +68,7 @@ login con el aviso *"Tu sesión expiró"*. Al pulsar **Cerrar sesión** también
 | Notificaciones | Ambos | ✅ Conectado |
 | Dashboard | Administrador | ✅ Conectado (RF-06: telemetría de la app por ventana con comparación contra el periodo anterior, tasa de "no reconocido" por versión, correcciones, OTA, adopción de modelos y resoluciones de agrónomos agregadas por la API con alerta y casos de plaga nueva para reentrenamiento; ya no descarga todas las solicitudes) |
 | Modelos IA | Administrador | ✅ Conectado (subida con etiquetas y calibración, métricas, pipeline de canales, kill-switch, auditoría y adopción) — la exportación del dataset (RF-09.6) espera a que la app envíe las imágenes |
+| Monitor de detecciones | Administrador | ✅ Conectado (RF-07: listado paginado de las detecciones de las apps, filtro por categorías biológicas para incluir o excluir, revisión humana divergente, datos defectuosos, versión del modelo, municipio y fechas, con detalle de cada detección) |
 | Ajustes | Ambos | 🟡 Datos de ejemplo — la API no tiene endpoint de ajustes |
 | Contacto directo con productor | Ambos | ✅ Conectado (el administrador lo habilita por caso; el agrónomo asignado ve el teléfono en el detalle) |
 
