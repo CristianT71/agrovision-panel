@@ -19,6 +19,7 @@ import {
   clavesSolicitudes,
   codigoSolicitud,
   solicitudesService,
+  type CasoPlagaNueva,
 } from '../../api/solicitudes/solicitudes.service'
 import { mensajeDeError } from '../../api/axios'
 import { formatearFecha } from '../../utils/fechas'
@@ -26,16 +27,14 @@ import {
   COLORES_VERSION,
   META_RESOLUCION,
   RANGOS,
-  UMBRAL_PLAGAS_SEMANA,
   correccionesPorTramo,
   diferenciaEnPuntos,
-  plagasNuevasDe,
+  filasResolucion,
   porcentajeDe,
-  resolucionesDe,
   resumirModelos,
   resumirOta,
   serieTasaPorVersion,
-  tendenciaPlagas,
+  tendenciaPlagasNuevas,
   ventanaAnterior,
   ventanaDeRango,
   type Rango,
@@ -72,10 +71,13 @@ export default function Dashboard() {
     queryFn: () => modelosService.listar(),
   })
 
-  // RF-06.5 — el administrador recibe todas las solicitudes
-  const solicitudes = useQuery({
-    queryKey: clavesSolicitudes.lista(),
-    queryFn: () => solicitudesService.listar(),
+  // RF-06.5 a RF-06.7 — resoluciones agregadas por la API, con la misma ventana que la telemetría
+  const tablero = useQuery({
+    queryKey: clavesSolicitudes.resoluciones(rango),
+    queryFn: async () => {
+      const ventana = ventanaDeRango(rango, new Date())
+      return { ventana, datos: await solicitudesService.resoluciones(ventana) }
+    },
     refetchInterval: 60_000,
   })
 
@@ -110,18 +112,20 @@ export default function Dashboard() {
   /* ---------- Resoluciones ---------- */
 
   const resoluciones = useMemo(() => {
-    if (!solicitudes.data) return null
-    const ventana = ventanaDeRango(rango, new Date(solicitudes.dataUpdatedAt))
-    const plagasNuevas = plagasNuevasDe(solicitudes.data, ventana)
+    if (!tablero.data) return null
+    const { ventana, datos } = tablero.data
     return {
-      ...resolucionesDe(solicitudes.data, ventana),
-      plagasNuevas,
-      tendencia: tendenciaPlagas(plagasNuevas, ventana, rango),
+      total: datos.total,
+      filas: filasResolucion(datos.porTipo, datos.total),
+      plagasNuevas: datos.plagasNuevas,
+      // Total de "Plaga nueva" en la ventana; la API lista como máximo los 50 más recientes
+      totalPlagaNueva: datos.porTipo.find((f) => f.tipo === 'Plaga nueva')?.casos ?? 0,
+      tendencia: tendenciaPlagasNuevas(datos.plagasNuevas.serie, ventana.desde, ventana.hasta, rango),
     }
-  }, [solicitudes.data, solicitudes.dataUpdatedAt, rango])
+  }, [tablero.data, rango])
 
   const semanal = rango !== 'semana'
-  const superaUmbral = !!resoluciones && resoluciones.tendencia.picoSemanal >= UMBRAL_PLAGAS_SEMANA
+  const umbral = resoluciones?.plagasNuevas.umbral
 
   // Valor de una tarjeta mientras carga o si falló su consulta
   const valorTelemetria = (valor: () => React.ReactNode) =>
@@ -387,11 +391,11 @@ export default function Dashboard() {
         Resoluciones del agrónomo
       </Seccion>
 
-      {solicitudes.isError ? (
+      {tablero.isError ? (
         <ErrorSeccion
-          error={solicitudes.error}
+          error={tablero.error}
           porDefecto="No se pudieron cargar las resoluciones."
-          onReintentar={() => solicitudes.refetch()}
+          onReintentar={() => tablero.refetch()}
         />
       ) : !resoluciones ? (
         <p className="rounded-2xl bg-white px-5 py-10 text-center text-sm text-gray-400">…</p>
@@ -454,22 +458,24 @@ export default function Dashboard() {
           para reentrenamiento cuando aparecen clases que el modelo no conoce
         </p>
 
-        {superaUmbral && (
+        {/* La API evalúa siempre los últimos 7 días, sin importar la ventana elegida */}
+        {resoluciones?.plagasNuevas.alertaActiva && (
           <div className="mt-4 inline-flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4 shrink-0">
               <path d="M12 4l9 16H3l9-16Z" strokeLinejoin="round" />
               <path d="M12 10v4M12 17h.01" strokeLinecap="round" />
             </svg>
-            ≥ {UMBRAL_PLAGAS_SEMANA} casos en una semana sugiere reentrenamiento urgente
+            {resoluciones.plagasNuevas.casosUltimaSemana} casos en los últimos 7 días: supera el umbral de{' '}
+            {resoluciones.plagasNuevas.umbral}
           </div>
         )}
 
-        {solicitudes.isError ? (
+        {tablero.isError ? (
           <div className="mt-5">
             <ErrorSeccion
-              error={solicitudes.error}
+              error={tablero.error}
               porDefecto="No se pudo cargar la tendencia."
-              onReintentar={() => solicitudes.refetch()}
+              onReintentar={() => tablero.refetch()}
             />
           </div>
         ) : !resoluciones ? (
@@ -477,7 +483,7 @@ export default function Dashboard() {
         ) : (
           <div className="mt-5">
             <ResponsiveContainer width="100%" height={280}>
-              <LineChart data={resoluciones.tendencia.puntos} margin={{ top: 10, right: 10, left: -18, bottom: 0 }}>
+              <LineChart data={resoluciones.tendencia} margin={{ top: 10, right: 10, left: -18, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f1" vertical={false} />
                 <XAxis dataKey="etiqueta" tick={EJE} axisLine={false} tickLine={false} />
                 <YAxis
@@ -485,13 +491,13 @@ export default function Dashboard() {
                   axisLine={false}
                   tickLine={false}
                   allowDecimals={false}
-                  domain={semanal ? [0, (max: number) => Math.max(max, UMBRAL_PLAGAS_SEMANA + 1)] : [0, 'auto']}
+                  domain={semanal && umbral ? [0, (max: number) => Math.max(max, umbral + 1)] : [0, 'auto']}
                 />
                 <Tooltip content={<TooltipPersonalizado etiqueta="Plaga nueva" sufijo=" casos" />} />
                 {/* El umbral es semanal: solo tiene sentido cuando cada punto es una semana */}
-                {semanal && (
+                {semanal && umbral !== undefined && (
                   <ReferenceLine
-                    y={UMBRAL_PLAGAS_SEMANA}
+                    y={umbral}
                     stroke={NARANJA}
                     strokeDasharray="4 4"
                     label={{ value: 'Umbral', position: 'right', fontSize: 10, fill: NARANJA }}
@@ -513,7 +519,11 @@ export default function Dashboard() {
       </div>
 
       {verPlagas && resoluciones && (
-        <ModalPlagasNuevas casos={resoluciones.plagasNuevas} onClose={() => setVerPlagas(false)} />
+        <ModalPlagasNuevas
+          casos={resoluciones.plagasNuevas.casos}
+          total={resoluciones.totalPlagaNueva}
+          onClose={() => setVerPlagas(false)}
+        />
       )}
     </div>
   )
@@ -524,9 +534,12 @@ export default function Dashboard() {
 // El administrador no tiene acceso a /solicitudes/:id (es ruta del profesional): solo se listan
 function ModalPlagasNuevas({
   casos,
+  total,
   onClose,
 }: {
-  casos: ReturnType<typeof plagasNuevasDe>
+  casos: CasoPlagaNueva[]
+  // Casos de "Plaga nueva" en la ventana; puede ser mayor que los recibidos
+  total: number
   onClose: () => void
 }) {
   useEffect(() => {
@@ -545,7 +558,8 @@ function ModalPlagasNuevas({
         <div className="px-6 pt-6">
           <h2 className="text-xl font-bold text-gray-900">Casos para reentrenamiento</h2>
           <p className="mt-0.5 text-sm text-gray-500">
-            {casos.length} {casos.length === 1 ? 'caso resuelto' : 'casos resueltos'} como plaga nueva en el periodo
+            {total} {total === 1 ? 'caso resuelto' : 'casos resueltos'} como plaga nueva en el periodo
+            {total > casos.length && ` · Mostrando los ${casos.length} más recientes`}
           </p>
         </div>
 
@@ -559,7 +573,9 @@ function ModalPlagasNuevas({
                     {s.plagaIdentificada}
                   </span>
                 )}
-                <span className="ml-auto text-xs text-gray-400">{formatearFecha(s.fechaResolucion)}</span>
+                {s.fechaResolucion && (
+                  <span className="ml-auto text-xs text-gray-400">{formatearFecha(s.fechaResolucion)}</span>
+                )}
               </div>
               <p className="mt-1.5 text-sm font-semibold text-gray-900">{s.productorNombre ?? s.finca}</p>
               <p className="text-xs text-gray-500">

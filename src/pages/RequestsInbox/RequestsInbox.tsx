@@ -1,18 +1,22 @@
-import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import {
+  LIMITE_SOLICITUDES,
   clavesSolicitudes,
   codigoSolicitud,
   porcentajeConfianza,
   solicitudesService,
   type EstadoSolicitud,
+  type FiltrosSolicitudes,
 } from '../../api/solicitudes/solicitudes.service'
 import { mensajeDeError } from '../../api/axios'
 import { StatusBadge, PlagaBadge } from '../../components/StatusBadge/StatusBadge'
 import MiniaturaSolicitud from '../../components/FotoSolicitud/MiniaturaSolicitud'
 import { haceCuanto } from '../../utils/fechas'
 import { useValorRetrasado } from '../../utils/useValorRetrasado'
+import { usePaginaDeFiltros } from '../../utils/usePaginaDeFiltros'
+import Paginacion from '../../components/Paginacion/Paginacion'
 
 // La API solo le entrega al agrónomo las solicitudes que el administrador le asignó,
 // así que nunca llegan en "Pendiente" ni "Enviada"
@@ -31,42 +35,42 @@ export default function RequestsInbox() {
   const [filtro, setFiltro] = useState<Filtro>('Todas')
   const [busqueda, setBusqueda] = useState('')
 
-  const consulta = useQuery({
-    queryKey: clavesSolicitudes.lista(),
-    queryFn: () => solicitudesService.listar(),
-  })
-
-  const solicitudes = useMemo(() => consulta.data ?? [], [consulta.data])
-
-  // RF-03.5 — la búsqueda la hace la API (incluye el nombre del productor); los conteos siguen
-  // calculándose sobre la lista completa
+  // RF-03.5 — la búsqueda la hace la API (incluye el nombre del productor)
   const busquedaAplicada = useValorRetrasado(busqueda.trim())
-  const resultados = useQuery({
-    queryKey: clavesSolicitudes.lista({ busqueda: busquedaAplicada }),
-    queryFn: () => solicitudesService.listar({ busqueda: busquedaAplicada }),
-    enabled: busquedaAplicada !== '',
-    placeholderData: (anterior) => anterior,
+  const [pagina, setPagina] = usePaginaDeFiltros(`${filtro}|${busquedaAplicada}`)
+
+  // RF-03.2, RNF-03.1 — filtro, búsqueda y paginación en el servidor
+  const filtros: FiltrosSolicitudes = {
+    estado: filtro === 'Todas' ? undefined : ESTADO_FILTRO[filtro],
+    busqueda: busquedaAplicada || undefined,
+    pagina,
+    limite: LIMITE_SOLICITUDES,
+  }
+
+  const consulta = useQuery({
+    queryKey: clavesSolicitudes.lista(filtros),
+    queryFn: () => solicitudesService.listar(filtros),
+    placeholderData: keepPreviousData,
+    refetchInterval: 30_000,
   })
 
-  // RF-03.4 — conteos calculados sobre lo que devolvió la API
-  const conteos = useMemo(() => {
-    const c: Record<string, number> = { Todas: solicitudes.length }
-    for (const [filtro, estado] of Object.entries(ESTADO_FILTRO)) {
-      c[filtro] = solicitudes.filter((s) => s.estado === estado).length
-    }
-    return c
-  }, [solicitudes])
+  // RF-03.4 — conteos de cada pestaña calculados por la API
+  const contadores = useQuery({
+    queryKey: clavesSolicitudes.contadores,
+    queryFn: () => solicitudesService.contadores(),
+    refetchInterval: 30_000,
+  })
 
-  // RF-03.2, RF-03.3 — filtros sobre la lista completa o sobre los resultados de la búsqueda
-  const visibles = useMemo(() => {
-    let lista = busquedaAplicada ? (resultados.data ?? []) : solicitudes
+  const porEstado = contadores.data?.porEstado
+  const conteos: Record<Filtro, number | undefined> = {
+    Todas: contadores.data?.total,
+    'Por resolver': porEstado?.Asignada,
+    Resueltas: porEstado?.Resuelta,
+    Descartadas: porEstado?.Descartada,
+  }
 
-    if (filtro !== 'Todas') lista = lista.filter((s) => s.estado === ESTADO_FILTRO[filtro])
-
-    return lista
-  }, [solicitudes, resultados.data, busquedaAplicada, filtro])
-
-  const porResolver = conteos['Por resolver'] ?? 0
+  const visibles = consulta.data?.datos ?? []
+  const sinAsignadas = contadores.data?.total === 0 && consulta.data?.total === 0
 
   return (
     <div>
@@ -79,7 +83,7 @@ export default function RequestsInbox() {
           </p>
         </div>
         <span className="shrink-0 rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700">
-          {porResolver} por resolver
+          {conteos['Por resolver'] ?? '…'} por resolver
         </span>
       </div>
 
@@ -118,7 +122,7 @@ export default function RequestsInbox() {
           >
             {f}
             <span className="rounded-md bg-gray-100 px-1.5 text-xs text-gray-600">
-              {conteos[f] ?? 0}
+              {conteos[f] ?? '…'}
             </span>
           </button>
         ))}
@@ -141,7 +145,7 @@ export default function RequestsInbox() {
               Reintentar
             </button>
           </div>
-        ) : solicitudes.length === 0 ? (
+        ) : sinAsignadas ? (
           <div className="rounded-xl bg-white px-5 py-10 text-center">
             <p className="text-sm font-medium text-gray-600">No tienes solicitudes asignadas.</p>
             <p className="mt-1 text-sm text-gray-400">
@@ -202,6 +206,16 @@ export default function RequestsInbox() {
           ))
         )}
       </div>
+
+      {consulta.data && consulta.data.total > 0 && (
+        <Paginacion
+          total={consulta.data.total}
+          pagina={pagina}
+          limite={LIMITE_SOLICITUDES}
+          cargando={consulta.isPlaceholderData}
+          onCambiar={setPagina}
+        />
+      )}
     </div>
   )
 }

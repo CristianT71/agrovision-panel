@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import {
   ESTADOS_SOLICITUD,
+  LIMITE_SOLICITUDES,
   clavesSolicitudes,
   codigoSolicitud,
   porcentajeConfianza,
@@ -9,6 +10,7 @@ import {
   solicitudesService,
   versionModeloCorta,
   type EstadoSolicitud,
+  type FiltrosSolicitudes,
   type Solicitud,
 } from '../../api/solicitudes/solicitudes.service'
 import { agronomosService, clavesAgronomos } from '../../api/agronomos/agronomos.service'
@@ -16,6 +18,8 @@ import { mensajeDeError } from '../../api/axios'
 import { StatusBadge, PlagaBadge } from '../../components/StatusBadge/StatusBadge'
 import { haceCuanto } from '../../utils/fechas'
 import { useValorRetrasado } from '../../utils/useValorRetrasado'
+import { usePaginaDeFiltros } from '../../utils/usePaginaDeFiltros'
+import Paginacion from '../../components/Paginacion/Paginacion'
 import AssignModal from './AssignModal'
 import CaseChatDrawer from './CaseChatDrawer'
 import { iniciales } from './iniciales'
@@ -29,13 +33,37 @@ export default function CasesInbox() {
   const [filtro, setFiltro] = useState<Filtro>('Todas')
   const [busqueda, setBusqueda] = useState('')
   const [asignando, setAsignando] = useState<Solicitud | null>(null)
-  const [chatId, setChatId] = useState<string | null>(null)
+  // RF-08.2 — filtro de las "Enviada" sin agrónomo, activado desde la insignia
+  const [soloSinAsignar, setSoloSinAsignar] = useState(false)
+  // Se guarda el caso abierto para que el chat siga visible aunque cambie la página
+  const [chat, setChat] = useState<Solicitud | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
 
-  // RF-08.1 — repositorio maestro de contingencias
+  // RF-03.5 — la búsqueda la hace la API (incluye el nombre del productor)
+  const busquedaAplicada = useValorRetrasado(busqueda.trim())
+  const [pagina, setPagina] = usePaginaDeFiltros(`${filtro}|${soloSinAsignar}|${busquedaAplicada}`)
+
+  // RF-08.1, RNF-03.1 — repositorio maestro paginado y filtrado en el servidor
+  const filtros: FiltrosSolicitudes = {
+    estado: filtro === 'Todas' ? undefined : filtro,
+    sinAsignar: soloSinAsignar || undefined,
+    busqueda: busquedaAplicada || undefined,
+    pagina,
+    limite: LIMITE_SOLICITUDES,
+  }
+
   const consulta = useQuery({
-    queryKey: clavesSolicitudes.lista(),
-    queryFn: () => solicitudesService.listar(),
+    queryKey: clavesSolicitudes.lista(filtros),
+    queryFn: () => solicitudesService.listar(filtros),
+    placeholderData: keepPreviousData,
+    refetchInterval: 30_000,
+  })
+
+  // RF-08.1, RF-08.2 — conteos por estado y casos huérfanos calculados por la API
+  const contadores = useQuery({
+    queryKey: clavesSolicitudes.contadores,
+    queryFn: () => solicitudesService.contadores(),
+    refetchInterval: 30_000,
   })
 
   // RF-08.4 — agrónomos activos con su carga de trabajo
@@ -44,39 +72,26 @@ export default function CasesInbox() {
     queryFn: () => agronomosService.listar({ estado: 'activo' }),
   })
 
-  const solicitudes = useMemo(() => consulta.data ?? [], [consulta.data])
-
-  // RF-03.5 — la búsqueda la hace la API (incluye el nombre del productor)
-  const busquedaAplicada = useValorRetrasado(busqueda.trim())
-  const resultados = useQuery({
-    queryKey: clavesSolicitudes.lista({ busqueda: busquedaAplicada }),
-    queryFn: () => solicitudesService.listar({ busqueda: busquedaAplicada }),
-    enabled: busquedaAplicada !== '',
-    placeholderData: (anterior) => anterior,
-  })
-
   const nombres = useMemo(
     () => new Map((agronomos.data ?? []).map((a) => [a.id, a.nombre])),
     [agronomos.data],
   )
 
-  const casoEnChat = solicitudes.find((s) => s.id === chatId) ?? null
+  const visibles = useMemo(() => consulta.data?.datos ?? [], [consulta.data])
 
-  const conteos = useMemo(() => {
-    const c: Record<string, number> = { Todas: solicitudes.length }
-    for (const estado of ESTADOS_SOLICITUD) {
-      c[estado] = solicitudes.filter((s) => s.estado === estado).length
-    }
-    return c
-  }, [solicitudes])
+  // La versión más reciente del caso abierto si está en la página; si no, la que se abrió
+  const casoEnChat = chat ? (visibles.find((s) => s.id === chat.id) ?? chat) : null
 
-  // RF-08.2 — casos en estado de orfandad
-  const sinAsignar = solicitudes.filter((s) => !s.agronomoId && puedeAsignarse(s.estado)).length
+  const conteo = (f: Filtro): number | undefined =>
+    f === 'Todas' ? contadores.data?.total : contadores.data?.porEstado[f]
+  const sinAsignar = contadores.data?.sinAsignar ?? 0
+  const sinCasos = contadores.data?.total === 0 && consulta.data?.total === 0
 
-  const visibles = useMemo(() => {
-    const lista = busquedaAplicada ? (resultados.data ?? []) : solicitudes
-    return filtro === 'Todas' ? lista : lista.filter((s) => s.estado === filtro)
-  }, [solicitudes, resultados.data, busquedaAplicada, filtro])
+  // Cada pestaña de estado reemplaza el filtro de "sin asignar" (son solo "Enviada")
+  const elegirFiltro = (f: Filtro) => {
+    setFiltro(f)
+    setSoloSinAsignar(false)
+  }
 
   return (
     <div>
@@ -89,15 +104,25 @@ export default function CasesInbox() {
           </p>
         </div>
 
-        {/* RF-08.2 — déficit de recursos humanos */}
+        {/* RF-08.2 — déficit de recursos humanos; al hacer clic filtra esos casos */}
         {sinAsignar > 0 && (
-          <span className="flex shrink-0 items-center gap-1.5 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600">
+          <button
+            type="button"
+            title="Ver solo los casos sin asignar"
+            onClick={() => {
+              setFiltro('Todas')
+              setSoloSinAsignar(true)
+            }}
+            className={`flex shrink-0 items-center gap-1.5 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-100 ${
+              soloSinAsignar ? 'ring-1 ring-red-300' : ''
+            }`}
+          >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-3.5 w-3.5">
               <circle cx="12" cy="12" r="9" />
               <path d="M12 7v5l3 2" strokeLinecap="round" />
             </svg>
             {sinAsignar} sin asignar
-          </span>
+          </button>
         )}
       </div>
 
@@ -136,20 +161,36 @@ export default function CasesInbox() {
           <button
             key={f}
             type="button"
-            onClick={() => setFiltro(f)}
+            onClick={() => elegirFiltro(f)}
             className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition ${
-              filtro === f
+              filtro === f && !soloSinAsignar
                 ? 'bg-white font-medium text-gray-900 shadow-sm'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
             {f}
             <span className="rounded-md bg-gray-100 px-1.5 text-xs text-gray-600">
-              {conteos[f] ?? 0}
+              {conteo(f) ?? '…'}
             </span>
           </button>
         ))}
       </div>
+
+      {soloSinAsignar && (
+        <div className="mt-3">
+          <span className="inline-flex items-center gap-2 rounded-lg bg-red-50 px-3 py-1.5 text-sm font-medium text-red-600">
+            Sin asignar
+            <button
+              type="button"
+              title="Quitar filtro"
+              onClick={() => setSoloSinAsignar(false)}
+              className="text-red-400 hover:text-red-700"
+            >
+              ×
+            </button>
+          </span>
+        </div>
+      )}
 
       {/* Listado */}
       <div className="mt-5 space-y-3">
@@ -168,7 +209,7 @@ export default function CasesInbox() {
               Reintentar
             </button>
           </div>
-        ) : solicitudes.length === 0 ? (
+        ) : sinCasos ? (
           <div className="rounded-xl bg-white px-5 py-10 text-center">
             <p className="text-sm font-medium text-gray-600">Aún no hay casos</p>
             <p className="mt-1 text-sm text-gray-400">
@@ -250,7 +291,7 @@ export default function CasesInbox() {
                   <button
                     type="button"
                     title="Abrir comunicación"
-                    onClick={() => setChatId(s.id)}
+                    onClick={() => setChat(s)}
                     className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 transition hover:border-agro-green hover:text-agro-green"
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-4 w-4">
@@ -283,6 +324,16 @@ export default function CasesInbox() {
         )}
       </div>
 
+      {consulta.data && consulta.data.total > 0 && (
+        <Paginacion
+          total={consulta.data.total}
+          pagina={pagina}
+          limite={LIMITE_SOLICITUDES}
+          cargando={consulta.isPlaceholderData}
+          onCambiar={setPagina}
+        />
+      )}
+
       {asignando && (
         <AssignModal
           solicitud={asignando}
@@ -298,7 +349,7 @@ export default function CasesInbox() {
         <CaseChatDrawer
           solicitud={casoEnChat}
           nombreAgronomo={casoEnChat.agronomoId ? (nombres.get(casoEnChat.agronomoId) ?? null) : null}
-          onClose={() => setChatId(null)}
+          onClose={() => setChat(null)}
         />
       )}
     </div>

@@ -78,12 +78,69 @@ export interface CasoSimilar {
   similitud: number
 }
 
+// RNF-03.1 — la lista se pagina y se filtra en el servidor, ordenada por fecha descendente.
+// Al agrónomo la API siempre le devuelve solo lo suyo e ignora agronomoId y sinAsignar.
 export interface FiltrosSolicitudes {
   estado?: EstadoSolicitud
+  // Solo administrador
   agronomoId?: string
-  soloMias?: boolean
+  // Solo administrador (RF-08.2): solicitudes "Enviada" sin agrónomo
+  sinAsignar?: boolean
   // RF-03.5 — la API busca por productor, finca, vereda, municipio o código SOL-…
   busqueda?: string
+  pagina?: number
+  limite?: number
+}
+
+// Deben coincidir con los de la API
+export const LIMITE_SOLICITUDES = 20
+export const MAX_LIMITE_SOLICITUDES = 100
+
+export interface PaginaSolicitudes {
+  datos: Solicitud[]
+  total: number
+  pagina: number
+  limite: number
+}
+
+// RF-03.4, RF-08.2 — todos los estados llegan siempre, con 0 si no hay
+export interface ContadoresSolicitudes {
+  total: number
+  porEstado: Record<EstadoSolicitud, number>
+  // Para el agrónomo siempre es 0
+  sinAsignar: number
+}
+
+// RF-06.6 — caso de "Plaga nueva" tal como lo revisa el administrador
+export interface CasoPlagaNueva {
+  id: string
+  plagaIdentificada: string | null
+  fechaResolucion: string | null
+  productorNombre: string | null
+  finca: string
+  vereda: string
+  municipio: string
+  respuestaProfesional: string | null
+}
+
+// RF-06.5 a RF-06.7 — tablero de resoluciones (solo administrador, ventana máxima de 90 días)
+export interface ResolucionesTablero {
+  desde: string
+  hasta: string
+  // Solicitudes "Resuelta" con fecha de resolución en la ventana
+  total: number
+  // Un tipo por cada TIPOS_RESULTADO; datos antiguos pueden traer tipos adicionales al final
+  porTipo: { tipo: string; casos: number }[]
+  plagasNuevas: {
+    umbral: number
+    // Siempre los últimos 7 días, sin importar la ventana pedida
+    casosUltimaSemana: number
+    alertaActiva: boolean
+    // Solo los días con casos, en hora de Colombia
+    serie: { dia: string; casos: number }[]
+    // Los 50 más recientes
+    casos: CasoPlagaNueva[]
+  }
 }
 
 // RF-04.7 — la API rechaza respuestas de menos de 10 caracteres
@@ -95,7 +152,14 @@ export interface DatosResolucion {
 
 export const solicitudesService = {
   listar: (filtros: FiltrosSolicitudes = {}) =>
-    api.get<Solicitud[]>('/solicitudes', { params: filtros }).then((r) => r.data),
+    api.get<PaginaSolicitudes>('/solicitudes', { params: filtros }).then((r) => r.data),
+  contadores: () => api.get<ContadoresSolicitudes>('/solicitudes/contadores').then((r) => r.data),
+  resoluciones: ({ desde, hasta }: { desde: Date; hasta: Date }) =>
+    api
+      .get<ResolucionesTablero>('/solicitudes/resoluciones', {
+        params: { desde: desde.toISOString(), hasta: hasta.toISOString() },
+      })
+      .then((r) => r.data),
   obtener: (id: string) => api.get<Solicitud>(`/solicitudes/${id}`).then((r) => r.data),
   // Sin anexos viaja como JSON; con anexos, como multipart (los archivos van en el campo "anexos")
   resolver: (id: string, datos: DatosResolucion, anexos: File[] = []) => {
@@ -144,6 +208,8 @@ export function puedeAsignarse(estado: EstadoSolicitud): boolean {
 export const clavesSolicitudes = {
   todas: ['solicitudes'] as const,
   lista: (filtros: FiltrosSolicitudes = {}) => ['solicitudes', 'lista', filtros] as const,
+  contadores: ['solicitudes', 'contadores'] as const,
+  resoluciones: (rango: string) => ['solicitudes', 'resoluciones', rango] as const,
   detalle: (id: string) => ['solicitudes', 'detalle', id] as const,
   fotos: (id: string) => ['solicitudes', 'fotos', id] as const,
   anexos: (id: string) => ['solicitudes', 'anexos', id] as const,

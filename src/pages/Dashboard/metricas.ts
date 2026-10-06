@@ -4,11 +4,7 @@ import type {
   IndicadoresModelo,
   PuntoSerie,
 } from '../../api/telemetria/telemetria.service'
-import {
-  TIPOS_RESULTADO,
-  type Solicitud,
-  type TipoResultado,
-} from '../../api/solicitudes/solicitudes.service'
+import { TIPOS_RESULTADO, type TipoResultado } from '../../api/solicitudes/solicitudes.service'
 
 /* ---------- Ventanas de tiempo — RF-06.1 ---------- */
 
@@ -172,59 +168,51 @@ export function serieTasaPorVersion(serie: PuntoSerie[], desde: Date, hasta: Dat
   return { versiones, filas }
 }
 
-export function correccionesPorTramo(serie: PuntoSerie[], desde: Date, hasta: Date, rango: Rango): Tramo[] {
+// Suma por día en 'semana' y por tramos de 7 días en las demás; los días sin datos cuentan 0
+function sumarPorTramo(
+  valores: { dia: string; valor: number }[],
+  desde: Date,
+  hasta: Date,
+  rango: Rango,
+): Tramo[] {
   const porDia = new Map<string, number>()
-  for (const p of serie) porDia.set(p.dia, (porDia.get(p.dia) ?? 0) + p.correcciones)
+  for (const { dia, valor } of valores) porDia.set(dia, (porDia.get(dia) ?? 0) + valor)
   return agrupar(diasDeVentana(desde, hasta), (d) => porDia.get(d) ?? 0, rango !== 'semana')
+}
+
+export function correccionesPorTramo(serie: PuntoSerie[], desde: Date, hasta: Date, rango: Rango): Tramo[] {
+  return sumarPorTramo(
+    serie.map((p) => ({ dia: p.dia, valor: p.correcciones })),
+    desde,
+    hasta,
+    rango,
+  )
 }
 
 /* ---------- Resoluciones del agrónomo — RF-06.5 a RF-06.7 ---------- */
 
-export const UMBRAL_PLAGAS_SEMANA = 5
-
-type SolicitudResuelta = Solicitud & { tipoResultado: TipoResultado; fechaResolucion: string }
-
-function resueltasEn(solicitudes: Solicitud[], { desde, hasta }: Ventana): SolicitudResuelta[] {
-  return solicitudes.filter((s): s is SolicitudResuelta => {
-    if (s.estado !== 'Resuelta' || s.tipoResultado === null || s.fechaResolucion === null) return false
-    const t = new Date(s.fechaResolucion).getTime()
-    return t >= desde.getTime() && t <= hasta.getTime()
-  })
-}
-
-export function resolucionesDe(solicitudes: Solicitud[], ventana: Ventana) {
-  const resueltas = resueltasEn(solicitudes, ventana)
-  const total = resueltas.length
-  const filas = TIPOS_RESULTADO.map((tipo) => {
-    const casos = resueltas.filter((s) => s.tipoResultado === tipo).length
+// Las 5 tarjetas en el orden de TIPOS_RESULTADO, con 0 si la API no trajo algún tipo.
+// El porcentaje es sobre el total de resueltas (puede incluir tipos antiguos fuera del catálogo).
+export function filasResolucion(porTipo: { tipo: string; casos: number }[], total: number) {
+  return TIPOS_RESULTADO.map((tipo) => {
+    const casos = porTipo.find((f) => f.tipo === tipo)?.casos ?? 0
     return { tipo, casos, porcentaje: total > 0 ? Math.round((casos / total) * 100) : 0 }
   })
-  return { total, filas }
 }
 
-// RF-06.6 — candidatos a reentrenamiento, del más reciente al más antiguo
-export function plagasNuevasDe(solicitudes: Solicitud[], ventana: Ventana): SolicitudResuelta[] {
-  return resueltasEn(solicitudes, ventana)
-    .filter((s) => s.tipoResultado === 'Plaga nueva')
-    .sort((a, b) => new Date(b.fechaResolucion).getTime() - new Date(a.fechaResolucion).getTime())
-}
-
-export function tendenciaPlagas(plagasNuevas: SolicitudResuelta[], ventana: Ventana, rango: Rango) {
-  const porDia = new Map<string, number>()
-  for (const s of plagasNuevas) {
-    const dia = diaBogota(s.fechaResolucion)
-    porDia.set(dia, (porDia.get(dia) ?? 0) + 1)
-  }
-
-  const semanal = rango !== 'semana'
-  const puntos = agrupar(diasDeVentana(ventana.desde, ventana.hasta), (d) => porDia.get(d) ?? 0, semanal)
-
-  // En la vista de una semana, toda la ventana es un único tramo
-  const picoSemanal = semanal
-    ? Math.max(0, ...puntos.map((p) => p.total))
-    : puntos.reduce((s, p) => s + p.total, 0)
-
-  return { puntos, picoSemanal }
+// RF-06.7 — la API manda solo los días con casos (hora de Colombia); se rellenan con 0
+export function tendenciaPlagasNuevas(
+  serie: { dia: string; casos: number }[],
+  desde: Date,
+  hasta: Date,
+  rango: Rango,
+): Tramo[] {
+  return sumarPorTramo(
+    serie.map((p) => ({ dia: p.dia, valor: p.casos })),
+    desde,
+    hasta,
+    rango,
+  )
 }
 
 // Clases literales para que Tailwind las incluya en el build
