@@ -65,6 +65,8 @@ export default function NotificationsMenu() {
 
   // Lleva al recurso relacionado según el rol
   const destino = (n: Notificacion): string | null => {
+    // RF-06.7 — la alerta de plagas nuevas no apunta a un recurso: se revisa en el tablero
+    if (n.tipo === 'alerta_plaga') return esAdmin ? '/dashboard' : null
     switch (n.referenciaTipo) {
       case 'solicitud':
         if (esAdmin) return '/casos'
@@ -177,15 +179,22 @@ export default function NotificationsMenu() {
                     n.leida ? 'bg-white hover:bg-gray-50' : 'bg-[#f5faf7] hover:bg-[#edf6f0]'
                   }`}
                 >
-                  {/* Icono según el recurso relacionado */}
+                  {/* Icono según el tipo o el recurso relacionado */}
                   <div
                     className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
-                      n.referenciaTipo === 'solicitud'
-                        ? 'bg-[#e3f1e8] text-agro-green'
-                        : 'bg-gray-100 text-gray-500'
+                      n.tipo === 'alerta_plaga'
+                        ? 'bg-amber-50 text-amber-600'
+                        : n.referenciaTipo === 'solicitud'
+                          ? 'bg-[#e3f1e8] text-agro-green'
+                          : 'bg-gray-100 text-gray-500'
                     }`}
                   >
-                    {n.referenciaTipo === 'solicitud' ? (
+                    {n.tipo === 'alerta_plaga' ? (
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
+                        <path d="M12 4l9 16H3l9-16Z" strokeLinejoin="round" />
+                        <path d="M12 10v4M12 17h.01" strokeLinecap="round" />
+                      </svg>
+                    ) : n.referenciaTipo === 'solicitud' ? (
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-4 w-4">
                         <rect x="5" y="4" width="14" height="17" rx="2" />
                         <path d="M9 4V3h6v1M9 11h6M9 15h4" strokeLinecap="round" />

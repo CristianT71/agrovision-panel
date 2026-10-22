@@ -62,12 +62,13 @@ login con el aviso *"Tu sesión expiró"*. Al pulsar **Cerrar sesión** también
 | Solicitar acceso | Público | ✅ Conectado (con documentos) |
 | Catálogo de plagas | Profesional | ✅ Conectado (fichas, aval, manejo químico y foto) |
 | Mi perfil | Ambos | ✅ Conectado |
-| Solicitudes, detalle y resolución | Profesional | ✅ Conectado (fotos de la app, búsqueda por productor, casos similares, anexos y canal con administración) |
+| Solicitudes, detalle y resolución | Profesional | ✅ Conectado (solo las asignadas al agrónomo; paginación, filtros, búsqueda por productor y contadores desde el servidor; fotos de la app, casos similares, anexos y canal con administración) |
 | Cuentas | Administrador | ✅ Conectado (validar, desactivar, reactivar, documentos y consentimiento) |
-| Bandeja de casos | Administrador | ✅ Conectado (asignación y chat de coordinación) |
+| Bandeja de casos | Administrador | ✅ Conectado (paginación, filtros y contadores desde el servidor, filtro de casos sin asignar, asignación y chat de coordinación) |
 | Notificaciones | Ambos | ✅ Conectado |
-| Dashboard | Administrador | ✅ Conectado (telemetría de campo, OTA, resoluciones del agrónomo, casos de "Plaga nueva" y alerta por umbral semanal) |
+| Dashboard | Administrador | ✅ Conectado (RF-06: telemetría de la app por ventana con comparación contra el periodo anterior, tasa de "no reconocido" por versión, correcciones, OTA, adopción de modelos y resoluciones de agrónomos agregadas por la API con alerta y casos de plaga nueva para reentrenamiento; ya no descarga todas las solicitudes) |
 | Modelos IA | Administrador | ✅ Conectado (subida con etiquetas y calibración, métricas, pipeline de canales, kill-switch, auditoría y adopción) — la exportación del dataset (RF-09.6) espera a que la app envíe las imágenes |
+| Monitor de detecciones | Administrador | ✅ Conectado (RF-07: listado paginado de las detecciones de las apps, filtro por categorías biológicas para incluir o excluir, revisión humana divergente, datos defectuosos, versión del modelo, municipio y fechas, con detalle de cada detección) |
 | Ajustes | Ambos | 🟡 Datos de ejemplo — la API no tiene endpoint de ajustes |
 | Contacto directo con productor | Ambos | ✅ Conectado (el administrador lo habilita por caso; el agrónomo asignado ve el teléfono en el detalle) |
 
@@ -87,7 +88,6 @@ src/
 │   ├── mensajes/           # Canal de coordinación por caso
 │   ├── notificaciones/     # Menú de notificaciones
 │   ├── modelos/            # Inventario, subida, métricas, canales y kill-switch
-│   ├── telemetria/         # Resumen de telemetría de campo por ventana de tiempo
 │   ├── permisos-contacto/  # Contacto directo productor-agrónomo por caso
 │   └── plagas/             # Catálogo
 ├── components/             # Piezas reutilizables (Button, Input, Sidebar, TagInput...)

@@ -42,6 +42,14 @@ const iconUsers = (
   </svg>
 )
 
+const iconRadar = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-5 w-5">
+    <circle cx="12" cy="12" r="8.5" />
+    <circle cx="12" cy="12" r="4" />
+    <path d="M12 12l6-6" strokeLinecap="round" />
+  </svg>
+)
+
 // RF-02.2 — accesos exclusivos del rol Profesional
 const ITEMS_PROFESIONAL: Item[] = [
   { to: '/solicitudes', label: 'Solicitudes', icon: iconInbox },
@@ -53,6 +61,7 @@ const ITEMS_ADMIN: Item[] = [
   { to: '/dashboard', label: 'Dashboard', icon: iconChart },
   { to: '/casos', label: 'Bandeja de casos', icon: iconInbox },
   { to: '/modelos', label: 'Modelos IA', icon: iconChip },
+  { to: '/detecciones', label: 'Monitor de detecciones', icon: iconRadar },
   { to: '/cuentas', label: 'Cuentas', icon: iconUsers },
 ]
 

@@ -12,6 +12,7 @@ import Dashboard from './pages/Dashboard/Dashboard'
 import CasesInbox from './pages/CasesInbox/CasesInbox'
 import AiModels from './pages/AiModels/AiModels'
 import Accounts from './pages/Accounts/Accounts'
+import DetectionsMonitor from './pages/DetectionsMonitor/DetectionsMonitor'
 import { obtenerSesion, rutaInicial } from './api/auth/session'
 
 function Inicio() {
@@ -43,6 +44,7 @@ function App() {
               <Route path="/casos" element={<CasesInbox />} />
               <Route path="/modelos" element={<AiModels />} />
               <Route path="/cuentas" element={<Accounts />} />
+              <Route path="/detecciones" element={<DetectionsMonitor />} />
             </Route>
 
             {/* RF-02.4 — comunes a ambos roles */}
