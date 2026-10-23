@@ -9,9 +9,7 @@ import {
   calcularIniciales,
   guardarSesion,
   rolDesdeApi,
-  rolParaApi,
   rutaInicial,
-  type Rol,
 } from '../../api/auth/session'
 
 const PREFIXES = [
@@ -25,7 +23,6 @@ const PREFIXES = [
 export default function Login() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
-  const [role, setRole] = useState<Rol>('profesional')
   const [dial, setDial] = useState('+57')
   const [phone, setPhone] = useState('')
   const [step, setStep] = useState<'enterPhone' | 'enterOtp'>('enterPhone')
@@ -108,7 +105,6 @@ export default function Login() {
     try {
       const { esperaSegundos } = await authService.solicitarOtp({
         telefono: formattedPhone,
-        rolSeleccionado: rolParaApi(role),
       })
       setStep('enterOtp')
       setCountdown(esperaSegundos ?? 30)
@@ -138,7 +134,6 @@ export default function Login() {
       const { accessToken, usuario } = await authService.validarOtp({
         telefono: formattedPhone,
         codigo,
-        rolSeleccionado: rolParaApi(role),
       })
 
       // El rol de la sesión es el que confirma la API, no el que se eligió en pantalla
@@ -177,29 +172,8 @@ export default function Login() {
             Ingresa tu número de celular para recibir un código de verificación.
           </p>
 
-          {/* RF-01.2 — selección de rol */}
-          <div className="mt-8">
-            <label className="text-sm font-medium text-gray-700">Acceder como</label>
-            <div className="mt-2 grid grid-cols-2 gap-3">
-              <Button
-                variant="toggle"
-                active={role === 'profesional'}
-                onClick={() => setRole('profesional')}
-              >
-                Agrónomo
-              </Button>
-              <Button
-                variant="toggle"
-                active={role === 'administrador'}
-                onClick={() => setRole('administrador')}
-              >
-                Administrador
-              </Button>
-            </div>
-          </div>
-
           {/* RF-01.3 — prefijos internacionales */}
-          <div className="mt-6">
+          <div className="mt-8">
             <label htmlFor="phone" className="text-sm font-medium text-gray-700">
               Número de celular
             </label>
