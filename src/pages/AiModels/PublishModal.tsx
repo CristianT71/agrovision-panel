@@ -11,7 +11,7 @@ import { mensajeDeError } from '../../api/axios'
 import { tamanoLegible } from '../../utils/archivos'
 
 // RF-09.5 — artefactos tensoriales que acepta la API (los reconoce por su contenido)
-const EXTENSIONES_MODELO = ['.tflite', '.pt']
+const EXTENSIONES_MODELO = ['.tflite', '.keras', '.pt']
 
 const INPUT =
   'w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm placeholder:text-gray-400 focus:border-agro-green focus:outline-none'
@@ -23,6 +23,7 @@ type Props = {
 export default function PublishModal({ onClose }: Props) {
   const queryClient = useQueryClient()
   const [modelo, setModelo] = useState<File | null>(null)
+  const [etiquetasTxt, setEtiquetasTxt] = useState<File | null>(null)
   const [etiquetas, setEtiquetas] = useState<File | null>(null)
   const [calibracion, setCalibracion] = useState<File | null>(null)
   const [errorArchivo, setErrorArchivo] = useState<string | null>(null)
@@ -46,6 +47,7 @@ export default function PublishModal({ onClose }: Props) {
         versionMinApp: appMinima.trim(),
         notas: notas.trim(),
         modelo: modelo!,
+        etiquetasTxt,
         etiquetas,
         calibracion,
       }),
@@ -78,12 +80,23 @@ export default function PublishModal({ onClose }: Props) {
     guardar(f)
   }
 
-  // Un .tflite sin etiquetas ni calibración no se puede activar en el teléfono
+  const elegirTxt = (f: File | undefined) => {
+    setErrorArchivo(null)
+    if (!f) return
+    if (!f.name.toLowerCase().endsWith('.txt') || f.size > MAX_MB_JSON * 1024 * 1024) {
+      setErrorArchivo(`Las clases van en un archivo .txt de hasta ${MAX_MB_JSON} MB (una por línea).`)
+      return
+    }
+    setEtiquetasTxt(f)
+  }
+
+  // Solo el modelo es obligatorio: las etiquetas y la calibración se pueden completar después.
+  // Un .tflite con su labels.txt queda completo (el API genera lo demás) y se puede publicar.
   const esTflite = modelo?.name.toLowerCase().endsWith('.tflite') ?? false
+  const completo = esTflite && (etiquetasTxt !== null || (etiquetas !== null && calibracion !== null))
   const versionValida = FORMATO_VERSION.test(version.trim())
   const appValida = FORMATO_VERSION.test(appMinima.trim())
-  const puedeSubir =
-    modelo !== null && versionValida && appValida && (!esTflite || (etiquetas !== null && calibracion !== null))
+  const puedeSubir = modelo !== null && versionValida && appValida
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -154,29 +167,59 @@ export default function PublishModal({ onClose }: Props) {
             />
           </label>
 
-          {/* La app no instala un .tflite sin estos dos archivos; un .pt los admite opcionales */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <ArchivoJson
-              titulo="Etiquetas"
-              ayuda="labels.json"
-              archivo={etiquetas}
-              obligatorio={esTflite}
-              onElegir={(f) => elegirJson(f, setEtiquetas)}
-            />
-            <ArchivoJson
-              titulo="Calibración"
-              ayuda="calibration.json"
-              archivo={calibracion}
-              obligatorio={esTflite}
-              onElegir={(f) => elegirJson(f, setCalibracion)}
-            />
-          </div>
+          {/* labels.txt es lo que produce el entrenamiento; con él el API arma el resto */}
+          <ArchivoSimple
+            titulo="Clases del modelo"
+            ayuda="labels.txt — una clase por línea (opcional)"
+            archivo={etiquetasTxt}
+            accept=".txt,text/plain"
+            onElegir={elegirTxt}
+          />
+
+          <details className="rounded-xl border border-gray-200 px-4 py-3">
+            <summary className="cursor-pointer text-sm font-medium text-gray-700">
+              Modelo completo con calibración (opcional)
+            </summary>
+            <p className="mt-2 text-xs text-gray-500">
+              Solo si tu modelo trae embedding y calibración propios. Si no subes nada de esto, el API usa un
+              modelo simple de una salida.
+            </p>
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <ArchivoSimple
+                titulo="Etiquetas"
+                ayuda="labels.json"
+                archivo={etiquetas}
+                accept=".json,application/json"
+                onElegir={(f) => elegirJson(f, setEtiquetas)}
+              />
+              <ArchivoSimple
+                titulo="Calibración"
+                ayuda="calibration.json"
+                archivo={calibracion}
+                accept=".json,application/json"
+                onElegir={(f) => elegirJson(f, setCalibracion)}
+              />
+            </div>
+          </details>
+
+          {esTflite && (
+            <p
+              className={`rounded-lg px-3 py-2 text-xs ${
+                completo ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'
+              }`}
+            >
+              {completo
+                ? 'Quedará firmado y listo para avanzar por el pipeline.'
+                : 'Sin las clases (labels.txt) entra como borrador pero no se podrá publicar a los teléfonos.'}
+            </p>
+          )}
 
           {errorArchivo && <p className="text-xs text-red-600">{errorArchivo}</p>}
 
           {modelo && !esTflite && (
             <p className="rounded-lg bg-purple-50 px-3 py-2 text-xs text-purple-700">
-              Un .pt queda como referencia (por ejemplo, el Teacher): nunca se publica a los teléfonos.
+              Un .keras o .pt queda como referencia (por ejemplo, el Student o el Teacher): nunca se publica a los
+              teléfonos.
             </p>
           )}
 
@@ -262,17 +305,17 @@ export default function PublishModal({ onClose }: Props) {
   )
 }
 
-function ArchivoJson({
+function ArchivoSimple({
   titulo,
   ayuda,
   archivo,
-  obligatorio,
+  accept,
   onElegir,
 }: {
   titulo: string
   ayuda: string
   archivo: File | null
-  obligatorio: boolean
+  accept: string
   onElegir: (f: File | undefined) => void
 }) {
   return (
@@ -281,13 +324,11 @@ function ArchivoJson({
         archivo ? 'border-agro-green bg-[#f7fbf8]' : 'border-gray-200'
       }`}
     >
-      <span className="text-sm font-medium text-gray-700">
-        {titulo} {obligatorio && <span className="text-red-500">*</span>}
-      </span>
+      <span className="text-sm font-medium text-gray-700">{titulo}</span>
       <span className="mt-0.5 block truncate text-xs text-gray-400">{archivo ? archivo.name : ayuda}</span>
       <input
         type="file"
-        accept=".json,application/json"
+        accept={accept}
         onChange={(e) => {
           onElegir(e.target.files?.[0])
           e.target.value = ''
