@@ -9,6 +9,15 @@ import {
 import { obtenerSesion } from '../../api/auth/session'
 import { mensajeDeError } from '../../api/axios'
 import { haceCuanto } from '../../utils/fechas'
+import {
+  guardarSonidoActivo,
+  prepararSonido,
+  sonarNotificacion,
+  sonidoActivo,
+} from '../../utils/sonidoNotificacion'
+
+// Cada cuánto se pregunta por notificaciones nuevas: una solicitud urgente no debe esperar un minuto
+const INTERVALO_CONSULTA_MS = 15_000
 
 export default function NotificationsMenu() {
   const navigate = useNavigate()
@@ -18,12 +27,17 @@ export default function NotificationsMenu() {
   // La API no permite borrar: la X solo las oculta durante esta sesión
   const [ocultas, setOcultas] = useState<Set<string>>(() => new Set())
   const ref = useRef<HTMLDivElement>(null)
+  const [sonido, setSonido] = useState(sonidoActivo)
+  // La campana se sacude al llegar una nueva y deja de hacerlo al abrirla
+  const [sacudiendo, setSacudiendo] = useState(false)
+  const anteriores = useRef<number | null>(null)
+  const tituloOriginal = useRef(document.title)
 
   // RF-02.5 — el contador se consulta periódicamente; la lista solo al abrir la campana
   const contador = useQuery({
     queryKey: clavesNotificaciones.noLeidas,
     queryFn: notificacionesService.noLeidas,
-    refetchInterval: 60_000,
+    refetchInterval: INTERVALO_CONSULTA_MS,
   })
 
   const lista = useQuery({
@@ -33,6 +47,29 @@ export default function NotificationsMenu() {
   })
 
   const noLeidas = contador.data?.total ?? 0
+
+  // El navegador solo deja sonar tras la primera interacción
+  useEffect(() => prepararSonido(), [])
+
+  // Aviso cuando el contador SUBE (la primera lectura al entrar no cuenta como nueva)
+  useEffect(() => {
+    if (contador.data === undefined) return
+    const previo = anteriores.current
+    anteriores.current = noLeidas
+    if (previo !== null && noLeidas > previo) {
+      setSacudiendo(true)
+      if (sonido) sonarNotificacion()
+    }
+  }, [noLeidas, contador.data, sonido])
+
+  // También avisa en la pestaña si la persona está en otra ventana
+  useEffect(() => {
+    const base = tituloOriginal.current
+    document.title = noLeidas > 0 ? `(${noLeidas}) ${base}` : base
+    return () => {
+      document.title = base
+    }
+  }, [noLeidas])
   const notificaciones = (lista.data?.items ?? []).filter((n) => !ocultas.has(n.id))
 
   // Cerrar al hacer clic afuera o con Escape
@@ -98,19 +135,31 @@ export default function NotificationsMenu() {
       <button
         type="button"
         title="Notificaciones"
-        onClick={() => setAbierto((a) => !a)}
+        onClick={() => {
+          setSacudiendo(false)
+          setAbierto((a) => !a)
+        }}
         className={`relative flex h-9 w-9 items-center justify-center rounded-lg transition ${
           abierto
             ? 'bg-[#eaf4ee] text-agro-green'
             : 'text-gray-400 hover:bg-[#eaf4ee] hover:text-gray-700'
         }`}
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-5 w-5">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          className={`h-5 w-5 ${sacudiendo ? 'campana-sacudida' : ''}`}
+        >
           <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" strokeLinecap="round" strokeLinejoin="round" />
           <path d="M13.7 21a2 2 0 0 1-3.4 0" strokeLinecap="round" />
         </svg>
         {noLeidas > 0 && (
-          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-amber-400 ring-2 ring-white" />
+          <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-400 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white">
+            {sacudiendo && <span className="absolute inset-0 animate-ping rounded-full bg-amber-400 opacity-75" />}
+            <span className="relative">{noLeidas > 9 ? '9+' : noLeidas}</span>
+          </span>
         )}
       </button>
 
@@ -127,6 +176,24 @@ export default function NotificationsMenu() {
                 </span>
               )}
             </div>
+            <button
+              type="button"
+              title={sonido ? 'Silenciar avisos' : 'Activar sonido de avisos'}
+              onClick={() => {
+                guardarSonidoActivo(!sonido)
+                setSonido(!sonido)
+              }}
+              className="ml-auto flex h-7 w-7 items-center justify-center rounded-md text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-4 w-4">
+                <path d="M4 10v4h4l5 4V6L8 10H4Z" strokeLinejoin="round" />
+                {sonido ? (
+                  <path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11" strokeLinecap="round" />
+                ) : (
+                  <path d="M17 9l4 6M21 9l-4 6" strokeLinecap="round" />
+                )}
+              </svg>
+            </button>
             {noLeidas > 0 && (
               <button
                 type="button"
