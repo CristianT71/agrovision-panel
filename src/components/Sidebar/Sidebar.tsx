@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { authService } from '../../api/auth/auth.service'
@@ -67,6 +67,21 @@ const ITEMS_ADMIN: Item[] = [
 
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false)
+  // El pie pasa de columna a fila. Si lo hiciera al instante, al expandir los tres elementos se amontonarían en el
+  // ancho que aún no llegó: se pone en fila cuando el menú ya terminó de abrirse y se apila en cuanto empieza a cerrarse
+  const [pieEnFila, setPieEnFila] = useState(true)
+  const temporizador = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  const alternarMenu = () => {
+    clearTimeout(temporizador.current)
+    if (collapsed) {
+      setCollapsed(false)
+      temporizador.current = setTimeout(() => setPieEnFila(true), 260)
+    } else {
+      setPieEnFila(false)
+      setCollapsed(true)
+    }
+  }
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
@@ -91,44 +106,59 @@ export default function Sidebar() {
 
   return (
     <aside
-      className={`flex h-screen flex-col border-r border-gray-100 bg-white transition-all duration-200 ${
+      // Solo se anima el ancho. Lo de adentro no cambia de estructura entre un estado y otro: los textos se
+      // desvanecen y se recortan en lugar de aparecer y desaparecer, por eso la transición se ve continua
+      className={`relative flex h-screen flex-col border-r border-gray-100 bg-white transition-[width] duration-300 ease-in-out ${
         collapsed ? 'w-20' : 'w-64'
       }`}
     >
-      {/* Encabezado */}
-      <div className="flex items-center justify-between px-4 py-5">
-        <div className="flex items-center gap-2.5 overflow-hidden">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#e8f3ec] text-agro-green">
-            <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" stroke="currentColor" strokeWidth="1.8">
-              <path d="M20 4c0 9-6 13-12 13 0-7 5-11 12-13Z" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M4 20c1-4 4-7 8-9" strokeLinecap="round" />
-            </svg>
+      {/* Encabezado: con 80 px de ancho y px-5 queda justo el logo de 40 px */}
+      <div className="flex items-center px-5 py-5">
+        <div className="flex min-w-0 items-center gap-2.5 overflow-hidden">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-agro-green">
+            <img src="/logo-agrovision-blanco.png" alt="AgroVisión" className="h-7 w-7 object-contain" />
           </div>
-          {!collapsed && (
-            <div className="leading-tight">
-              <p className="text-sm font-bold text-gray-900">AgroVisión</p>
-              <p className="text-xs text-gray-400">{esAdmin ? 'Administrador' : 'Agrónomo'}</p>
-            </div>
-          )}
+          <div
+            className={`whitespace-nowrap leading-tight transition-opacity duration-200 ${
+              collapsed ? 'opacity-0' : 'opacity-100 delay-100'
+            }`}
+          >
+            <p className="text-sm font-bold text-gray-900">AgroVisión</p>
+            <p className="text-xs text-gray-400">{esAdmin ? 'Administrador' : 'Agrónomo'}</p>
+          </div>
         </div>
+        {/* Siempre en el borde derecho: al contraer se vuelve un círculo y al expandir se queda plano */}
         <button
           type="button"
-          onClick={() => setCollapsed((c) => !c)}
-          className="shrink-0 text-gray-400 hover:text-gray-600"
+          onClick={alternarMenu}
+          title={collapsed ? 'Expandir menú' : 'Contraer menú'}
+          className={`absolute top-7 z-10 flex h-6 w-6 items-center justify-center rounded-full border text-gray-400 transition-all duration-300 ease-in-out hover:text-agro-green ${
+            collapsed
+              ? '-right-3 border-gray-200 bg-white shadow-sm'
+              : 'right-3 border-transparent bg-transparent shadow-none'
+          }`}
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
-            <path d={collapsed ? 'M9 6l6 6-6 6' : 'M15 6l-6 6 6 6'} strokeLinecap="round" strokeLinejoin="round" />
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className={`h-4 w-4 transition-transform duration-300 ${collapsed ? '' : 'rotate-180'}`}
+          >
+            <path d="M9 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
       </div>
 
-      {/* Navegación */}
-      <nav className="flex-1 px-3">
-        {!collapsed && (
-          <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-            Módulos
-          </p>
-        )}
+      {/* Navegación: con px-[18px] el módulo mide 44 px colapsado y el icono queda en el centro del menú */}
+      <nav className="flex-1 px-[18px]">
+        <p
+          className={`overflow-hidden whitespace-nowrap px-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400 transition-all duration-300 ${
+            collapsed ? 'h-0 pb-0 opacity-0' : 'h-6 opacity-100'
+          }`}
+        >
+          Módulos
+        </p>
         <ul className="space-y-1">
           {items.map((item) => (
             <li key={item.to}>
@@ -136,25 +166,26 @@ export default function Sidebar() {
                 to={item.to}
                 title={collapsed ? item.label : undefined}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${
-                    isActive
-                      ? 'bg-[#eaf4ee] font-medium text-agro-green'
-                      : 'text-gray-600 hover:bg-gray-50'
+                  `flex h-11 items-center overflow-hidden whitespace-nowrap rounded-lg text-sm transition-colors ${
+                    isActive ? 'bg-[#eaf4ee] font-medium text-agro-green' : 'text-gray-600 hover:bg-gray-50'
                   }`
                 }
               >
-                <span className="shrink-0">{item.icon}</span>
-                {!collapsed && item.label}
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center">{item.icon}</span>
+                <span className={`pr-3 transition-opacity duration-200 ${collapsed ? 'opacity-0' : 'opacity-100 delay-100'}`}>
+                  {item.label}
+                </span>
               </NavLink>
             </li>
           ))}
         </ul>
       </nav>
 
-      {/* Pie: perfil, ajustes, salir — RF-02.4 */}
+      {/* Pie: perfil, ajustes, salir — RF-02.4. El icono queda siempre a 22 px del borde: centrado con el menú
+          colapsado y en el mismo sitio al abrirlo, así no se desplaza de lado al cambiar de estado */}
       <div
-        className={`flex items-center gap-1 border-t border-gray-100 px-3 py-3 ${
-          collapsed ? 'flex-col' : ''
+        className={`flex border-t border-gray-100 py-3 pl-[22px] ${
+          pieEnFila ? 'items-center gap-1 pr-3' : 'flex-col items-start gap-1 pb-4'
         }`}
       >
         {/* Perfil */}
@@ -162,20 +193,22 @@ export default function Sidebar() {
           to="/perfil"
           title="Mi perfil"
           className={({ isActive }) =>
-            `flex min-w-0 items-center gap-2.5 rounded-xl px-2 py-1.5 text-left transition hover:bg-[#eaf4ee] ${
+            `flex min-w-0 items-center rounded-xl py-1 text-left transition-colors hover:bg-[#eaf4ee] ${
               isActive ? 'bg-[#eaf4ee]' : ''
-            } ${collapsed ? '' : 'flex-1'}`
+            } ${pieEnFila ? 'flex-1 pr-2' : ''}`
           }
         >
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-agro-green text-xs font-semibold text-white">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-agro-green text-xs font-semibold text-white">
             {calcularIniciales(nombre)}
           </div>
-          {!collapsed && (
-            <div className="min-w-0 leading-tight">
-              <p className="truncate text-xs font-semibold text-gray-800">{nombre}</p>
-              <p className="text-[11px] text-gray-400">{esAdmin ? 'Administrador' : 'Profesional'}</p>
-            </div>
-          )}
+          <div
+            className={`min-w-0 overflow-hidden leading-tight transition-all duration-200 ${
+              pieEnFila ? 'ml-2.5 max-w-full opacity-100' : 'ml-0 max-w-0 opacity-0'
+            }`}
+          >
+            <p className="truncate text-xs font-semibold text-gray-800">{nombre}</p>
+            <p className="text-[11px] text-gray-400">{esAdmin ? 'Administrador' : 'Profesional'}</p>
+          </div>
         </NavLink>
 
         {/* Ajustes */}
