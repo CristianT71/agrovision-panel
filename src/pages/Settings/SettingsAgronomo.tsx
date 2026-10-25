@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import Toggle from '../../components/Toggle/Toggle'
+import CorreoNotificaciones from './CorreoNotificaciones'
 import {
   AJUSTES,
   IDIOMAS,
@@ -72,13 +73,7 @@ export default function SettingsAgronomo() {
             etiqueta="Notificaciones push"
           />
         </Fila>
-        <Fila etiqueta="Notificaciones por correo">
-          <Toggle
-            activo={ajustes.correo}
-            onChange={(v) => cambiar('correo', v)}
-            etiqueta="Notificaciones por correo"
-          />
-        </Fila>
+        <CorreoNotificaciones />
 
         <p className="pt-5 text-sm text-gray-700">Eventos</p>
         <Fila etiqueta="Nuevas solicitudes asignadas" nota="Al recibir un caso para revisar">
