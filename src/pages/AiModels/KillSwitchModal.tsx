@@ -38,7 +38,7 @@ export default function KillSwitchModal({ modelo, onClose }: Props) {
   const valida = justificacion.trim().length >= MIN_JUSTIFICACION
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="overlay-modal fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
       <div className="relative w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
