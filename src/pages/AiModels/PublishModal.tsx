@@ -99,19 +99,21 @@ export default function PublishModal({ onClose }: Props) {
   const puedeSubir = modelo !== null && versionValida && appValida
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="overlay-modal fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
-        <div className="px-6 pt-6">
+      <div className="relative flex max-h-[92vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="shrink-0 border-b border-gray-100 px-6 pb-4 pt-6">
           <h2 className="text-xl font-bold text-gray-900">Subir nueva versión</h2>
           <p className="mt-1 text-sm text-gray-500">
             Entra como borrador. Desde ahí avanza por interno, canario y producción.
           </p>
         </div>
 
-        <div className="max-h-[65vh] space-y-5 overflow-y-auto px-6 py-5">
-          {/* Carga del artefacto */}
+        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5">
+          {/* 1 · Archivos */}
+          <section className="space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Archivos</h3>
           <label
             onDragOver={(e) => {
               e.preventDefault()
@@ -124,7 +126,7 @@ export default function PublishModal({ onClose }: Props) {
               const f = e.dataTransfer.files[0]
               if (f) elegirModelo(f)
             }}
-            className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-7 text-center transition ${
+            className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-6 text-center transition-colors ${
               arrastrando
                 ? 'border-agro-green bg-[#f3f9f5]'
                 : modelo
@@ -176,8 +178,8 @@ export default function PublishModal({ onClose }: Props) {
             onElegir={elegirTxt}
           />
 
-          <details className="rounded-xl border border-gray-200 px-4 py-3">
-            <summary className="cursor-pointer text-sm font-medium text-gray-700">
+          <details className="group rounded-xl border border-gray-200 px-4 py-3">
+            <summary className="cursor-pointer text-sm font-medium text-gray-700 marker:text-gray-400">
               Modelo completo con calibración (opcional)
             </summary>
             <p className="mt-2 text-xs text-gray-500">
@@ -201,6 +203,7 @@ export default function PublishModal({ onClose }: Props) {
               />
             </div>
           </details>
+          </section>
 
           {esTflite && (
             <p
@@ -223,40 +226,46 @@ export default function PublishModal({ onClose }: Props) {
             </p>
           )}
 
-          <div>
-            <label htmlFor="version" className="text-sm font-medium text-gray-700">
-              Número de versión
-            </label>
-            <input
-              id="version"
-              value={version}
-              onChange={(e) => setVersion(e.target.value)}
-              placeholder="1.3.0"
-              className={`mt-2 ${INPUT} font-mono`}
-            />
-            {version.trim() && !versionValida && (
-              <p className="mt-1 text-xs text-amber-600">Usa el formato 1.2.3, sin la letra v.</p>
-            )}
-          </div>
+          {/* 2 · Versión */}
+          <section className="space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Versión</h3>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="version" className="block text-sm font-medium text-gray-700">
+                  Número de versión
+                </label>
+                <input
+                  id="version"
+                  value={version}
+                  onChange={(e) => setVersion(e.target.value)}
+                  placeholder="1.3.0"
+                  className={`mt-1.5 ${INPUT} font-mono`}
+                />
+                {version.trim() && !versionValida && (
+                  <p className="mt-1 text-xs text-amber-600">Usa el formato 1.2.3, sin la letra v.</p>
+                )}
+              </div>
+
+              <div>
+                <label htmlFor="appMin" className="block text-sm font-medium text-gray-700">
+                  Versión mínima de la app
+                </label>
+                <input
+                  id="appMin"
+                  value={appMinima}
+                  onChange={(e) => setAppMinima(e.target.value)}
+                  placeholder="2.0.0"
+                  className={`mt-1.5 ${INPUT} font-mono`}
+                />
+                {appMinima.trim() && !appValida && (
+                  <p className="mt-1 text-xs text-amber-600">Usa el formato 1.2.3, sin la letra v.</p>
+                )}
+              </div>
+            </div>
+          </section>
 
           <div>
-            <label htmlFor="appMin" className="text-sm font-medium text-gray-700">
-              Versión mínima de la app
-            </label>
-            <input
-              id="appMin"
-              value={appMinima}
-              onChange={(e) => setAppMinima(e.target.value)}
-              placeholder="2.0.0"
-              className={`mt-2 ${INPUT} font-mono`}
-            />
-            {appMinima.trim() && !appValida && (
-              <p className="mt-1 text-xs text-amber-600">Usa el formato 1.2.3, sin la letra v.</p>
-            )}
-          </div>
-
-          <div>
-            <label htmlFor="notas" className="text-sm font-medium text-gray-700">
+            <label htmlFor="notas" className="block text-sm font-medium text-gray-700">
               Notas de versión
             </label>
             <textarea
@@ -266,7 +275,7 @@ export default function PublishModal({ onClose }: Props) {
               value={notas}
               onChange={(e) => setNotas(e.target.value)}
               placeholder="Describe los cambios, mejoras y correcciones de esta versión..."
-              className={`mt-2 ${INPUT} resize-none`}
+              className={`mt-1.5 ${INPUT} resize-none`}
             />
           </div>
 
@@ -277,7 +286,7 @@ export default function PublishModal({ onClose }: Props) {
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-3 border-t border-gray-100 px-6 py-4">
+        <div className="grid shrink-0 grid-cols-2 gap-3 border-t border-gray-100 bg-white px-6 py-4">
           <button
             type="button"
             onClick={onClose}
@@ -320,11 +329,11 @@ function ArchivoSimple({
 }) {
   return (
     <label
-      className={`cursor-pointer rounded-xl border px-4 py-3 transition hover:border-agro-green ${
+      className={`block cursor-pointer rounded-xl border px-4 py-3 transition-colors hover:border-agro-green ${
         archivo ? 'border-agro-green bg-[#f7fbf8]' : 'border-gray-200'
       }`}
     >
-      <span className="text-sm font-medium text-gray-700">{titulo}</span>
+      <span className="block text-sm font-medium text-gray-700">{titulo}</span>
       <span className="mt-0.5 block truncate text-xs text-gray-400">{archivo ? archivo.name : ayuda}</span>
       <input
         type="file"
