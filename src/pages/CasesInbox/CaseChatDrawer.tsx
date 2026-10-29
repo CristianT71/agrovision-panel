@@ -1,8 +1,5 @@
 import { useEffect } from 'react'
 import { codigoSolicitud, type Solicitud } from '../../api/solicitudes/solicitudes.service'
-import AnexosLectura from '../../components/AnexosLectura/AnexosLectura'
-import { PlagaBadge } from '../../components/StatusBadge/StatusBadge'
-import { formatearFecha, formatearFechaHora } from '../../utils/fechas'
 import TarjetaUbicacion from '../../components/MapaUbicacion/TarjetaUbicacion'
 import CanalCoordinacion from '../RequestDetail/CanalCoordinacion'
 import PermisoContacto from './PermisoContacto'
@@ -11,39 +8,6 @@ type Props = {
   solicitud: Solicitud
   nombreAgronomo: string | null
   onClose: () => void
-}
-
-// Lo que resolvió el agrónomo; el texto va como texto plano y conserva los saltos de línea
-function ResolucionProfesional({ solicitud: s, nombreAgronomo }: { solicitud: Solicitud; nombreAgronomo: string | null }) {
-  return (
-    <section className="bg-[#e8f7ee] p-4">
-      <h3 className="text-sm font-semibold text-agro-green">Resolución del profesional</h3>
-      <div className="mt-2 space-y-1 text-xs text-[#4a8563]">
-        <p>
-          Resuelta por <strong className="font-semibold">{nombreAgronomo ?? 'agrónomo'}</strong>
-        </p>
-        {s.fechaResolucion && <p>{formatearFechaHora(s.fechaResolucion)}</p>}
-        {s.tipoResultado && (
-          <p>
-            Tipo de resultado: <strong className="font-semibold">{s.tipoResultado}</strong>
-          </p>
-        )}
-        {s.plagaIdentificada && (
-          <p className="flex items-center gap-1.5">
-            Plaga identificada: <PlagaBadge plaga={s.plagaIdentificada} />
-          </p>
-        )}
-      </div>
-      {s.respuestaProfesional?.trim() ? (
-        <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-relaxed text-[#2f6b4a]">
-          {s.respuestaProfesional}
-        </p>
-      ) : (
-        <p className="mt-3 text-sm italic text-[#4a8563]">Sin texto de respuesta</p>
-      )}
-      <AnexosLectura solicitudId={s.id} />
-    </section>
-  )
 }
 
 export default function CaseChatDrawer({ solicitud, nombreAgronomo, onClose }: Props) {
@@ -85,23 +49,8 @@ export default function CaseChatDrawer({ solicitud, nombreAgronomo, onClose }: P
         {/* RF-08.8 — permiso de contacto directo (ACL) */}
         <PermisoContacto solicitud={solicitud} />
 
-        {/* Resolución aparte del chat, con su propio scroll para que un texto largo no lo tape */}
-        {solicitud.estado === 'Resuelta' && (
-          <div className="max-h-[45%] shrink-0 overflow-y-auto border-b border-gray-200">
-            <ResolucionProfesional solicitud={solicitud} nombreAgronomo={nombreAgronomo} />
-          </div>
-        )}
-
         {/* RF-08.7 — el canal solo funciona con un agrónomo vinculado */}
         <div className="flex-1 overflow-y-auto">
-          {solicitud.estado === 'Descartada' && (
-            <div className="border-b border-gray-100 bg-red-50 px-4 py-3 text-sm text-red-700">
-              <p className="font-semibold">Solicitud descartada</p>
-              {solicitud.fechaResolucion && (
-                <p className="text-xs">{formatearFecha(solicitud.fechaResolucion)}</p>
-              )}
-            </div>
-          )}
           {/* Dónde se tomó la foto: la API decide si el administrador puede verla */}
           <div className="border-b border-gray-100 p-3">
             <TarjetaUbicacion solicitudId={solicitud.id} tieneUbicacion={solicitud.tieneUbicacion} />

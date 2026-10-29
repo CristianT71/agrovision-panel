@@ -22,6 +22,7 @@ import { usePaginaDeFiltros } from '../../utils/usePaginaDeFiltros'
 import Paginacion from '../../components/Paginacion/Paginacion'
 import AssignModal from './AssignModal'
 import CaseChatDrawer from './CaseChatDrawer'
+import ResolucionModal from './ResolucionModal'
 import { iniciales } from './iniciales'
 import MiniaturaSolicitud from '../../components/FotoSolicitud/MiniaturaSolicitud'
 
@@ -37,6 +38,7 @@ export default function CasesInbox() {
   const [soloSinAsignar, setSoloSinAsignar] = useState(false)
   // Se guarda el caso abierto para que el chat siga visible aunque cambie la página
   const [chat, setChat] = useState<Solicitud | null>(null)
+  const [verResolucion, setVerResolucion] = useState<Solicitud | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
 
   // RF-03.5 — la búsqueda la hace la API (incluye el nombre del productor)
@@ -299,6 +301,16 @@ export default function CasesInbox() {
                     </svg>
                   </button>
 
+                  {(s.estado === 'Resuelta' || s.estado === 'Descartada') && (
+                    <button
+                      type="button"
+                      onClick={() => setVerResolucion(s)}
+                      className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 transition hover:border-agro-green hover:text-agro-green"
+                    >
+                      {s.estado === 'Resuelta' ? 'Ver resolución' : 'Ver descarte'}
+                    </button>
+                  )}
+
                   {puedeAsignarse(s.estado) && (
                     <button
                       type="button"
@@ -342,6 +354,14 @@ export default function CasesInbox() {
             setAsignando(null)
             setAviso(texto)
           }}
+        />
+      )}
+
+      {verResolucion && (
+        <ResolucionModal
+          solicitud={verResolucion}
+          nombreAgronomo={verResolucion.agronomoId ? (nombres.get(verResolucion.agronomoId) ?? null) : null}
+          onClose={() => setVerResolucion(null)}
         />
       )}
 
