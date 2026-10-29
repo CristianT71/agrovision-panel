@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ubicacionService, type UbicacionCaptura } from '../../api/ubicacion/ubicacion.service'
+import { ubicacionService, type PuntoUbicacion } from '../../api/ubicacion/ubicacion.service'
 import { mensajeDeError } from '../../api/axios'
 import {
   construirEnlaceGoogleEarth,
@@ -10,7 +10,7 @@ import {
 } from '../../utils/ubicacion'
 
 // Coordenadas, altitud, precisión y aviso de ubicación simulada (popup y tarjeta del detalle)
-export function ResumenCoordenadas({ ubicacion: u }: { ubicacion: UbicacionCaptura }) {
+export function ResumenCoordenadas({ ubicacion: u }: { ubicacion: PuntoUbicacion }) {
   return (
     <div className="space-y-0.5">
       <p>
@@ -32,7 +32,7 @@ export function AccionesUbicacion({
   onVerCaso,
   compacto = false,
 }: {
-  ubicacion: UbicacionCaptura
+  ubicacion: PuntoUbicacion
   onVerCaso?: (id: string) => void
   compacto?: boolean
 }) {

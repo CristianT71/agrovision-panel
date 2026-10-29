@@ -207,7 +207,7 @@ export default function RequestDetail() {
           </section>
 
           {/* Ubicación de la captura: la API decide si este agrónomo puede verla */}
-          <TarjetaUbicacion solicitudId={s.id} />
+          <TarjetaUbicacion solicitudId={s.id} tieneUbicacion={s.tieneUbicacion} />
 
           {/* RF-04.4 — resultado de la IA */}
           <section className="rounded-2xl bg-white p-6">

@@ -10,22 +10,29 @@ const MapaUbicacion = lazy(() => import('./MapaUbicacion'))
 
 // "Ubicación de la captura" — la API decide quién la ve (administrador o agrónomo asignado);
 // el panel no lo adivina: un 403/404 o un null se muestran como "Sin ubicación disponible".
-export default function TarjetaUbicacion({ solicitudId }: { solicitudId: string }) {
+export default function TarjetaUbicacion({
+  solicitudId,
+  tieneUbicacion,
+}: {
+  solicitudId: string
+  // De la solicitud (GET /solicitudes/:id o la bandeja): sin ella no se pide /ubicacion
+  tieneUbicacion: boolean
+}) {
   const consulta = useQuery({
     queryKey: clavesUbicacion.detalle(solicitudId),
     queryFn: () => ubicacionService.obtenerUbicacion(solicitudId),
-    enabled: Boolean(solicitudId),
+    enabled: Boolean(solicitudId) && tieneUbicacion,
   })
 
   const estado = axios.isAxiosError(consulta.error) ? consulta.error.response?.status : undefined
-  const sinUbicacion = (consulta.isSuccess && !consulta.data) || estado === 403 || estado === 404
+  const sinUbicacion = !tieneUbicacion || (consulta.isSuccess && !consulta.data) || estado === 403 || estado === 404
   const ubicacion = consulta.data
 
   return (
     <section className="rounded-2xl bg-white p-6">
       <h2 className="font-semibold text-gray-900">Ubicación de la captura</h2>
 
-      {consulta.isPending ? (
+      {tieneUbicacion && consulta.isPending ? (
         <div className="mt-4 h-48 animate-pulse rounded-xl bg-gray-100" />
       ) : sinUbicacion || !ubicacion ? (
         consulta.isError && !sinUbicacion ? (

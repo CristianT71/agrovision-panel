@@ -53,7 +53,7 @@ export default function CaseChatDrawer({ solicitud, nombreAgronomo, onClose }: P
         <div className="flex-1 overflow-y-auto">
           {/* Dónde se tomó la foto: la API decide si el administrador puede verla */}
           <div className="border-b border-gray-100 p-3">
-            <TarjetaUbicacion solicitudId={solicitud.id} />
+            <TarjetaUbicacion solicitudId={solicitud.id} tieneUbicacion={solicitud.tieneUbicacion} />
           </div>
           <CanalCoordinacion
             solicitudId={solicitud.id}

@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { ESTADOS_SOLICITUD, solicitudesService, type EstadoSolicitud, type Solicitud } from '../../api/solicitudes/solicitudes.service'
 import {
-  MAX_PUNTOS_MAPA,
   clavesUbicacion,
+  desdeDelDia,
+  hastaDelDia,
   ubicacionService,
   type FiltrosMapa,
 } from '../../api/ubicacion/ubicacion.service'
@@ -15,20 +16,17 @@ import CaseChatDrawer from '../CasesInbox/CaseChatDrawer'
 const CAMPO =
   'w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-agro-green focus:outline-none'
 
-// Las fechas del filtro son días calendario de Colombia (UTC-5, sin horario de verano)
-const inicioDelDia = (dia: string) => (dia ? new Date(`${dia}T00:00:00-05:00`).toISOString() : undefined)
-const finDelDia = (dia: string) => (dia ? new Date(`${dia}T23:59:59.999-05:00`).toISOString() : undefined)
-
 // RF-02.3 — mapa satelital de los casos (solo administrador)
 export default function CasesMap() {
   const [estado, setEstado] = useState<EstadoSolicitud | ''>('')
   const [desde, setDesde] = useState('')
   const [hasta, setHasta] = useState('')
   const [municipio, setMunicipio] = useState('')
-  const [sinAsignar, setSinAsignar] = useState(false)
   const [caso, setCaso] = useState<Solicitud | null>(null)
   const [errorAccion, setErrorAccion] = useState<string | null>(null)
   const [exportando, setExportando] = useState(false)
+  // El KML no avisa si el API lo recortó: con el listado recortado se pide confirmar antes de exportar
+  const [confirmandoExportar, setConfirmandoExportar] = useState(false)
 
   // Municipio con debounce: no se consulta la API en cada tecla
   const municipioRetrasado = useValorRetrasado(municipio.trim(), 400)
@@ -36,10 +34,9 @@ export default function CasesMap() {
   const rangoInvalido = Boolean(desde && hasta && desde > hasta)
   const filtros: FiltrosMapa = {
     estado: estado || undefined,
-    desde: inicioDelDia(desde),
-    hasta: finDelDia(hasta),
+    desde: desdeDelDia(desde),
+    hasta: hastaDelDia(hasta),
     municipio: municipioRetrasado || undefined,
-    sinAsignar: sinAsignar || undefined,
   }
 
   const mapa = useQuery({
@@ -49,20 +46,20 @@ export default function CasesMap() {
     placeholderData: keepPreviousData,
   })
 
-  const puntos = mapa.data?.datos ?? []
-  const recortado = Boolean(mapa.data && (mapa.data.truncado || mapa.data.datos.length >= MAX_PUNTOS_MAPA))
-  const hayFiltros = Boolean(estado || desde || hasta || municipio || sinAsignar)
+  const puntos = mapa.data?.puntos ?? []
+  const recortado = mapa.data?.truncado ?? false
+  const hayFiltros = Boolean(estado || desde || hasta || municipio)
 
   const limpiar = () => {
     setEstado('')
     setDesde('')
     setHasta('')
     setMunicipio('')
-    setSinAsignar(false)
   }
 
   const exportar = async () => {
     setErrorAccion(null)
+    setConfirmandoExportar(false)
     setExportando(true)
     try {
       await ubicacionService.descargarKmlMapa(filtros)
@@ -92,7 +89,7 @@ export default function CasesMap() {
         </div>
         <button
           type="button"
-          onClick={exportar}
+          onClick={() => (recortado ? setConfirmandoExportar(true) : exportar())}
           disabled={exportando || rangoInvalido || puntos.length === 0}
           className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-agro-green hover:text-agro-green disabled:cursor-not-allowed disabled:opacity-50"
         >
@@ -101,7 +98,7 @@ export default function CasesMap() {
       </div>
 
       {/* Filtros */}
-      <div className="mt-6 grid grid-cols-1 gap-3 rounded-2xl bg-white p-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="mt-6 grid grid-cols-1 gap-3 rounded-2xl bg-white p-4 sm:grid-cols-2 lg:grid-cols-4">
         <label className="text-xs font-medium text-gray-500">
           Estado
           <select
@@ -134,22 +131,13 @@ export default function CasesMap() {
             className={`${CAMPO} mt-1`}
           />
         </label>
-        <div className="flex items-end justify-between gap-3">
-          <label className="flex items-center gap-2 pb-2 text-sm text-gray-700">
-            <input
-              type="checkbox"
-              checked={sinAsignar}
-              onChange={(e) => setSinAsignar(e.target.checked)}
-              className="h-4 w-4 accent-agro-green"
-            />
-            Sin asignar
-          </label>
-          {hayFiltros && (
+        {hayFiltros && (
+          <div className="flex items-end">
             <button type="button" onClick={limpiar} className="pb-2 text-xs text-gray-500 hover:text-agro-green hover:underline">
               Limpiar
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {rangoInvalido && (
@@ -159,10 +147,23 @@ export default function CasesMap() {
       )}
       {recortado && (
         <p className="mt-3 rounded-xl bg-amber-50 px-4 py-2 text-sm text-amber-700">
-          Se muestran solo los primeros {MAX_PUNTOS_MAPA} casos
-          {mapa.data && mapa.data.total > MAX_PUNTOS_MAPA ? ` de ${mapa.data.total.toLocaleString('es-CO')}` : ''}. Afina los
-          filtros para ver el resto.
+          Hay más casos de los que caben en el mapa: se muestran solo los primeros {mapa.data?.limite}. Afina los filtros
+          para ver el resto.
         </p>
+      )}
+      {confirmandoExportar && (
+        <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl bg-amber-50 px-4 py-2 text-sm text-amber-700">
+          <span>
+            El KML se recorta igual que el mapa (primeros {mapa.data?.limite} casos) y no incluye el resto. ¿Exportar de
+            todos modos?
+          </span>
+          <button type="button" onClick={exportar} className="rounded-lg border border-amber-300 bg-white px-3 py-1 text-xs font-medium">
+            Exportar de todos modos
+          </button>
+          <button type="button" onClick={() => setConfirmandoExportar(false)} className="text-xs underline">
+            Cancelar
+          </button>
+        </div>
       )}
       {errorAccion && <p className="mt-3 rounded-xl bg-red-50 px-4 py-2 text-sm text-red-600">{errorAccion}</p>}
 

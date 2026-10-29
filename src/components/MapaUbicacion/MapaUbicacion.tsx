@@ -6,7 +6,7 @@ import 'leaflet/dist/leaflet.css'
 import 'react-leaflet-cluster/dist/assets/MarkerCluster.css'
 import 'react-leaflet-cluster/dist/assets/MarkerCluster.Default.css'
 import { codigoSolicitud, type EstadoSolicitud } from '../../api/solicitudes/solicitudes.service'
-import type { UbicacionCaptura } from '../../api/ubicacion/ubicacion.service'
+import type { PuntoUbicacion } from '../../api/ubicacion/ubicacion.service'
 import { StatusBadge } from '../StatusBadge/StatusBadge'
 import { AccionesUbicacion, ResumenCoordenadas } from './AccionesUbicacion'
 import { CAPA_CALLES, CAPA_SATELITE, CENTRO_POR_DEFECTO, UMBRAL_CLUSTER } from './config'
@@ -31,7 +31,7 @@ function iconoDeEstado(estado: EstadoSolicitud) {
 }
 
 type Props = {
-  puntos: UbicacionCaptura[]
+  puntos: PuntoUbicacion[]
   // Clases de tamaño del contenedor (el mapa necesita una altura explícita)
   className?: string
   // Sin esta función no se muestra el botón "Ver caso"
@@ -89,7 +89,7 @@ export default function MapaUbicacion({ puntos, className = 'h-[28rem] w-full', 
 }
 
 // Encuadra todos los puntos (o se acerca al único). Solo se recalcula cuando cambia el conjunto de puntos.
-function AjustarVista({ puntos, zoomPunto }: { puntos: UbicacionCaptura[]; zoomPunto: number }) {
+function AjustarVista({ puntos, zoomPunto }: { puntos: PuntoUbicacion[]; zoomPunto: number }) {
   const mapa = useMap()
   const clave = useMemo(() => puntos.map((p) => p.solicitudId).join('|'), [puntos])
 
@@ -109,7 +109,7 @@ function AjustarVista({ puntos, zoomPunto }: { puntos: UbicacionCaptura[]; zoomP
   return null
 }
 
-function PopupCaso({ punto: p, onVerCaso }: { punto: UbicacionCaptura; onVerCaso?: (id: string) => void }) {
+function PopupCaso({ punto: p, onVerCaso }: { punto: PuntoUbicacion; onVerCaso?: (id: string) => void }) {
   return (
     <div className="space-y-2 text-xs text-gray-700">
       <div className="flex items-center justify-between gap-2">

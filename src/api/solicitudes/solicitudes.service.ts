@@ -32,6 +32,8 @@ export interface Solicitud {
   tipoResultado: TipoResultado | null
   plagaIdentificada: string | null
   fechaResolucion: string | null
+  // La API ya no envía coordenadas aquí: este aviso dice si se pueden pedir en /solicitudes/:id/ubicacion
+  tieneUbicacion: boolean
 }
 
 // RF-04.2 — ángulo con el que la app tomó cada foto
