@@ -13,7 +13,6 @@ import {
   porcentajeConfianza,
   solicitudesService,
   versionModeloCorta,
-  type AnexoResolucion,
   type Solicitud,
   type TipoResultado,
 } from '../../api/solicitudes/solicitudes.service'
