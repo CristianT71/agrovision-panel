@@ -39,7 +39,7 @@ const OPCIONES_REVISION: { valor: EstadoRevision | undefined; texto: string }[] 
 ]
 
 const CAMPO =
-  'w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-agro-green focus:outline-none'
+  'h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-800 transition-colors focus:border-agro-green focus:outline-none'
 
 export default function DetectionsMonitor() {
   const [filtros, setFiltros] = useState<FiltrosMonitor>(FILTROS_VACIOS)
@@ -174,22 +174,26 @@ export default function DetectionsMonitor() {
       {/* ---------- Filtros ---------- */}
       <section className="mt-5 rounded-2xl bg-white p-6">
         {/* RF-07.2 — categorías biológicas */}
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
+        <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
+          <div className="min-w-0 max-w-2xl">
             <h2 className="font-semibold text-gray-900">Categorías biológicas</h2>
             <p className="mt-0.5 text-xs text-gray-500">
               Un clic incluye la categoría, otro la excluye y un tercero quita el filtro. Sin ninguna incluida se
               muestran todas.
             </p>
           </div>
-          {conFiltros && (
-            <button type="button" onClick={limpiar} className="text-sm font-medium text-agro-green hover:underline">
-              Limpiar filtros
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={limpiar}
+            disabled={!conFiltros}
+            className="shrink-0 text-sm font-medium text-agro-green transition-opacity hover:underline disabled:pointer-events-none disabled:opacity-0"
+          >
+            Limpiar filtros
+          </button>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
+        {/* Todas del mismo ancho y alto: el estado solo cambia colores, nunca el tamaño ni el orden */}
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
           {CATEGORIAS.map((c) => {
             const estado = estadoDeCategoria(c, filtros)
             return (
@@ -197,22 +201,29 @@ export default function DetectionsMonitor() {
                 key={c}
                 type="button"
                 aria-pressed={estado !== 'neutral'}
-                title={
-                  estado === 'neutral' ? 'Incluir' : estado === 'incluida' ? 'Excluir' : 'Quitar filtro'
-                }
+                title={estado === 'neutral' ? 'Incluir' : estado === 'incluida' ? 'Excluir' : 'Quitar filtro'}
                 onClick={() => cambiar(alternarCategoria(c, filtros))}
-                className={`flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm transition ${
+                className={`flex h-10 items-center justify-between gap-2 rounded-xl border px-3 text-sm transition-colors duration-200 ${
                   estado === 'incluida'
                     ? 'border-agro-green bg-[#e8f3ec] font-medium text-agro-green'
                     : estado === 'excluida'
                       ? 'border-red-300 bg-red-50 text-red-600'
-                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'
                 }`}
               >
-                {estado === 'incluida' && <span aria-hidden>✓</span>}
-                {estado === 'excluida' && <span aria-hidden>✕</span>}
-                <span className={estado === 'excluida' ? 'line-through' : ''}>{ETIQUETAS_CATEGORIA[c]}</span>
-                <span className="rounded-full bg-white/70 px-1.5 text-xs text-gray-500">
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <span aria-hidden className="w-3 shrink-0 text-center text-xs">
+                    {estado === 'incluida' ? '✓' : estado === 'excluida' ? '✕' : ''}
+                  </span>
+                  <span className={`truncate ${estado === 'excluida' ? 'line-through' : ''}`}>
+                    {ETIQUETAS_CATEGORIA[c]}
+                  </span>
+                </span>
+                <span
+                  className={`shrink-0 rounded-full px-2 py-0.5 text-xs tabular-nums transition-colors duration-200 ${
+                    estado === 'neutral' ? 'bg-gray-100 text-gray-500' : 'bg-white text-gray-600'
+                  }`}
+                >
                   {resumen.data ? conteoCategoria(c).toLocaleString('es-CO') : '…'}
                 </span>
               </button>
@@ -220,31 +231,32 @@ export default function DetectionsMonitor() {
           })}
         </div>
 
-        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {/* RF-07.3 */}
-          <div className="md:col-span-2 xl:col-span-3">
-            <span className="text-xs font-medium text-gray-500">Revisión humana</span>
-            <div className="mt-1.5 inline-flex flex-wrap gap-1 rounded-xl bg-[#eef4f0] p-1">
-              {OPCIONES_REVISION.map((o) => (
-                <button
-                  key={o.texto}
-                  type="button"
-                  onClick={() => cambiar({ revision: o.valor })}
-                  className={`rounded-lg px-3 py-1.5 text-sm transition ${
-                    filtros.revision === o.valor
-                      ? 'bg-white font-medium text-gray-900 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  {o.texto}
-                </button>
-              ))}
-            </div>
+        {/* RF-07.3 — revisión humana */}
+        <div className="mt-6 border-t border-gray-100 pt-5">
+          <span className="block text-xs font-medium text-gray-500">Revisión humana</span>
+          <div className="mt-1.5 inline-flex flex-wrap gap-1 rounded-xl bg-[#eef4f0] p-1">
+            {OPCIONES_REVISION.map((o) => (
+              <button
+                key={o.texto}
+                type="button"
+                onClick={() => cambiar({ revision: o.valor })}
+                className={`rounded-lg px-3 py-1.5 text-sm transition-all duration-200 ${
+                  filtros.revision === o.valor
+                    ? 'bg-white font-medium text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                {o.texto}
+              </button>
+            ))}
           </div>
+        </div>
 
+        {/* Resto de filtros: cinco campos de la misma altura que se acomodan según el ancho */}
+        <div className="mt-5 grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {/* RF-07.4 */}
           <label className="block">
-            <span className="text-xs font-medium text-gray-500">Datos</span>
+            <span className="block text-xs font-medium text-gray-500">Datos</span>
             <select
               value={filtros.defectuosas === undefined ? '' : String(filtros.defectuosas)}
               onChange={(e) =>
@@ -259,7 +271,7 @@ export default function DetectionsMonitor() {
           </label>
 
           <label className="block">
-            <span className="text-xs font-medium text-gray-500">Versión del modelo</span>
+            <span className="block text-xs font-medium text-gray-500">Versión del modelo</span>
             <select
               value={filtros.modeloVersion ?? ''}
               onChange={(e) => cambiar({ modeloVersion: e.target.value || undefined })}
@@ -275,9 +287,7 @@ export default function DetectionsMonitor() {
           </label>
 
           <label className="block">
-            <span className="text-xs font-medium text-gray-500">
-              Municipio <span className="text-gray-400">(nombre exacto)</span>
-            </span>
+            <span className="block text-xs font-medium text-gray-500">Municipio</span>
             <input
               value={municipio}
               onChange={(e) => setMunicipio(e.target.value)}
@@ -285,13 +295,13 @@ export default function DetectionsMonitor() {
               onKeyDown={(e) => {
                 if (e.key === 'Enter') aplicarMunicipio()
               }}
-              placeholder="Ej: Jardín"
+              placeholder="Nombre exacto, ej: Jardín"
               className={`mt-1.5 ${CAMPO} placeholder:text-gray-400`}
             />
           </label>
 
           <label className="block">
-            <span className="text-xs font-medium text-gray-500">Desde</span>
+            <span className="block text-xs font-medium text-gray-500">Desde</span>
             <input
               type="date"
               value={filtros.desde ?? ''}
@@ -301,7 +311,7 @@ export default function DetectionsMonitor() {
           </label>
 
           <label className="block">
-            <span className="text-xs font-medium text-gray-500">Hasta</span>
+            <span className="block text-xs font-medium text-gray-500">Hasta</span>
             <input
               type="date"
               value={filtros.hasta ?? ''}
@@ -319,7 +329,11 @@ export default function DetectionsMonitor() {
       </section>
 
       {/* ---------- Tabla — RF-07.1 ---------- */}
-      <section className="mt-5 overflow-hidden rounded-2xl bg-white">
+      <section
+        className={`mt-5 overflow-hidden rounded-2xl bg-white transition-opacity duration-200 ${
+          lista.isFetching && !lista.isPending ? 'opacity-60' : 'opacity-100'
+        }`}
+      >
         {invalido ? (
           <p className="px-5 py-10 text-center text-sm text-gray-400">Corrige el rango de fechas.</p>
         ) : lista.isPending ? (

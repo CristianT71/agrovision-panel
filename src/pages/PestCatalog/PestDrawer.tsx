@@ -154,7 +154,7 @@ export default function PestDrawer({ ficha, onGuardada, onClose }: Props) {
   const imagenActual = vistaPrevia ?? urlArchivo(ficha?.fotoUrl)
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
+    <div className="overlay-drawer fixed inset-0 z-50 flex justify-end">
       {/* Fondo */}
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 

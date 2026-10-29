@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import Toggle from '../../components/Toggle/Toggle'
+import CorreoNotificaciones from './CorreoNotificaciones'
 import {
   AJUSTES_ADMIN,
   CANALES_DESPLIEGUE,
@@ -162,13 +163,7 @@ export default function SettingsAdmin() {
             etiqueta="Notificaciones push"
           />
         </Fila>
-        <Fila etiqueta="Notificaciones por correo">
-          <Toggle
-            activo={a.correo}
-            onChange={(v) => cambiar('correo', v)}
-            etiqueta="Notificaciones por correo"
-          />
-        </Fila>
+        <CorreoNotificaciones />
 
         <p className="pt-5 text-sm text-gray-700">Eventos</p>
 

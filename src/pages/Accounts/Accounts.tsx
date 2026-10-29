@@ -569,7 +569,7 @@ function ModalConfirmacion({
   onCerrar: () => void
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="overlay-modal fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onCerrar} />
       <div className="relative w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="px-6 pt-6">
@@ -630,7 +630,7 @@ function ModalDocumentos({ agronomo, onCerrar }: { agronomo: AgronomoResumen; on
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="overlay-modal fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onCerrar} />
       <div className="relative w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="flex items-start justify-between gap-4 px-6 pt-6">

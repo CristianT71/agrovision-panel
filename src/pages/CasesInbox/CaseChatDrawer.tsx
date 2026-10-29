@@ -20,7 +20,7 @@ export default function CaseChatDrawer({ solicitud, nombreAgronomo, onClose }: P
   }, [onClose])
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
+    <div className="overlay-drawer fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
       <aside className="relative flex h-full w-full max-w-md flex-col bg-white shadow-2xl">

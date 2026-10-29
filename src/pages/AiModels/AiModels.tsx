@@ -85,12 +85,20 @@ export default function AiModels() {
                           Kill-switch activo
                         </span>
                       )}
-                      {m.formato === 'pt' && (
+                      {m.formato !== 'tflite' && (
                         <span className="rounded-md bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-700">
-                          .pt · solo referencia
+                          .{m.formato} · solo referencia
                         </span>
                       )}
-                      {m.formato === 'tflite' && !m.firmado && (
+                      {m.formato === 'tflite' && !m.artefactosCompletos && (
+                        <span
+                          className="rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700"
+                          title="Faltan las clases (labels.txt) o la calibración: no se puede publicar"
+                        >
+                          Faltan archivos
+                        </span>
+                      )}
+                      {m.formato === 'tflite' && m.artefactosCompletos && !m.firmado && (
                         <span
                           className="rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700"
                           title="La API no tenía clave de firma al subirlo: no se puede publicar"

@@ -16,12 +16,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
 
         {/* Logo */}
         <div className="relative flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/15">
-            <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6" stroke="currentColor" strokeWidth="1.8">
-              <path d="M20 4c0 9-6 13-12 13 0-7 5-11 12-13Z" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M4 20c1-4 4-7 8-9" strokeLinecap="round" />
-            </svg>
-          </div>
+          <img src="/logo-agrovision-blanco.png" alt="AgroVisión" className="h-14 w-14 object-contain" />
           <div>
             <p className="text-xl font-bold leading-tight">AgroVisión</p>
             <p className="text-sm text-white/70">Panel administrativo</p>

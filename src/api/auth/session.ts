@@ -63,10 +63,6 @@ export function rolDesdeApi(rol: string): Rol | null {
   return null
 }
 
-export function rolParaApi(rol: Rol): RolApi {
-  return rol === 'profesional' ? 'agronomo' : 'admin'
-}
-
 // RF-01.7 — módulo principal según el nivel de acceso
 export function rutaInicial(rol: Rol): string {
   return rol === 'administrador' ? '/dashboard' : '/solicitudes'

@@ -1,6 +1,117 @@
 @import "tailwindcss";
 
+/* Campana de notificaciones: se sacude cuando llega una nueva */
+@keyframes campana-sacudida {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  15% {
+    transform: rotate(16deg);
+  }
+  30% {
+    transform: rotate(-14deg);
+  }
+  45% {
+    transform: rotate(10deg);
+  }
+  60% {
+    transform: rotate(-8deg);
+  }
+  75% {
+    transform: rotate(4deg);
+  }
+}
+
+.campana-sacudida {
+  animation: campana-sacudida 0.9s ease-in-out 3;
+  transform-origin: 50% 10%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .campana-sacudida {
+    animation: none;
+  }
+}
+
 @theme {
   --color-agro-green: #1f5f3f;
   --color-agro-green-light: #4a9463;
+}
+
+/* ---------- Transiciones suaves ---------- */
+
+/* Cambio de pantalla: la página nueva entra con un desvanecido y un leve ascenso */
+@keyframes pagina-entra {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.pagina-entra {
+  animation: pagina-entra 0.28s ease-out both;
+}
+
+/* Ventanas emergentes: el fondo se desvanece y la caja crece un poco */
+@keyframes fundido {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modal-sube {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.overlay-modal {
+  animation: fundido 0.2s ease-out both;
+}
+
+.overlay-modal > :last-child {
+  animation: modal-sube 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* Paneles laterales: el fondo se desvanece y el panel entra desde la derecha */
+@keyframes panel-entra {
+  from {
+    transform: translateX(32px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+.overlay-drawer > :first-child {
+  animation: fundido 0.25s ease-out both;
+}
+
+.overlay-drawer > :last-child {
+  animation: panel-entra 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pagina-entra,
+  .overlay-modal,
+  .overlay-modal > :last-child,
+  .overlay-drawer > :first-child,
+  .overlay-drawer > :last-child {
+    animation: none;
+  }
 }

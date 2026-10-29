@@ -295,6 +295,8 @@ function describir(e: EventoAuditoria): string {
   switch (e.accion) {
     case 'subida':
       return d.firmado ? 'Subió la versión firmada' : 'Subió la versión sin firma'
+    case 'artefactos':
+      return d.firmado ? 'Completó los archivos y firmó el modelo' : 'Subió parte de los archivos del modelo'
     case 'metricas':
       return 'Registró las métricas del modelo'
     case 'kill_switch':
