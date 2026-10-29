@@ -16,7 +16,7 @@ type Props = {
 // Lo que resolvió el agrónomo; el texto va como texto plano y conserva los saltos de línea
 function ResolucionProfesional({ solicitud: s, nombreAgronomo }: { solicitud: Solicitud; nombreAgronomo: string | null }) {
   return (
-    <section className="border-b border-gray-100 bg-[#e8f7ee] p-4">
+    <section className="bg-[#e8f7ee] p-4">
       <h3 className="text-sm font-semibold text-agro-green">Resolución del profesional</h3>
       <div className="mt-2 space-y-1 text-xs text-[#4a8563]">
         <p>
@@ -85,11 +85,15 @@ export default function CaseChatDrawer({ solicitud, nombreAgronomo, onClose }: P
         {/* RF-08.8 — permiso de contacto directo (ACL) */}
         <PermisoContacto solicitud={solicitud} />
 
+        {/* Resolución aparte del chat, con su propio scroll para que un texto largo no lo tape */}
+        {solicitud.estado === 'Resuelta' && (
+          <div className="max-h-[45%] shrink-0 overflow-y-auto border-b border-gray-200">
+            <ResolucionProfesional solicitud={solicitud} nombreAgronomo={nombreAgronomo} />
+          </div>
+        )}
+
         {/* RF-08.7 — el canal solo funciona con un agrónomo vinculado */}
         <div className="flex-1 overflow-y-auto">
-          {solicitud.estado === 'Resuelta' && (
-            <ResolucionProfesional solicitud={solicitud} nombreAgronomo={nombreAgronomo} />
-          )}
           {solicitud.estado === 'Descartada' && (
             <div className="border-b border-gray-100 bg-red-50 px-4 py-3 text-sm text-red-700">
               <p className="font-semibold">Solicitud descartada</p>
