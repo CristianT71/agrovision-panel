@@ -24,6 +24,7 @@ import Button from '../../components/Button/Button'
 import { formatearFechaHora } from '../../utils/fechas'
 import { tamanoLegible } from '../../utils/archivos'
 import FotoSolicitud, { Marcador } from '../../components/FotoSolicitud/FotoSolicitud'
+import TarjetaUbicacion from '../../components/MapaUbicacion/TarjetaUbicacion'
 import CanalCoordinacion from './CanalCoordinacion'
 import CasosSimilares from './CasosSimilares'
 
@@ -204,6 +205,9 @@ export default function RequestDetail() {
               </Dato>
             </dl>
           </section>
+
+          {/* Ubicación de la captura: la API decide si este agrónomo puede verla */}
+          <TarjetaUbicacion solicitudId={s.id} />
 
           {/* RF-04.4 — resultado de la IA */}
           <section className="rounded-2xl bg-white p-6">

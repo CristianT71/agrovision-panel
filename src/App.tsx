@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Login from './pages/Login/Login'
 import RequestAccess from './pages/RequestAccess/RequestAccess'
@@ -14,6 +15,9 @@ import AiModels from './pages/AiModels/AiModels'
 import Accounts from './pages/Accounts/Accounts'
 import DetectionsMonitor from './pages/DetectionsMonitor/DetectionsMonitor'
 import { obtenerSesion, rutaInicial } from './api/auth/session'
+
+// Leaflet pesa: el mapa se descarga solo al entrar a /mapa (RNF-03.2/03.3)
+const CasesMap = lazy(() => import('./pages/CasesMap/CasesMap'))
 
 function Inicio() {
   const sesion = obtenerSesion()
@@ -45,6 +49,14 @@ function App() {
               <Route path="/modelos" element={<AiModels />} />
               <Route path="/cuentas" element={<Accounts />} />
               <Route path="/detecciones" element={<DetectionsMonitor />} />
+              <Route
+                path="/mapa"
+                element={
+                  <Suspense fallback={<p className="py-10 text-center text-sm text-gray-400">Cargando mapa...</p>}>
+                    <CasesMap />
+                  </Suspense>
+                }
+              />
             </Route>
 
             {/* RF-02.4 — comunes a ambos roles */}
