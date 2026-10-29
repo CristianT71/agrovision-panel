@@ -41,7 +41,10 @@
 
 /* ---------- Transiciones suaves ---------- */
 
-/* Cambio de pantalla: la página nueva entra con un desvanecido y un leve ascenso */
+/* Cambio de pantalla: la página nueva entra con un desvanecido y un leve ascenso.
+   `backwards` y no `both`: si la animación queda activa al terminar, el navegador trata a
+   la página como contenedor de transformación y las ventanas `fixed` de dentro (asignar,
+   subir versión, ficha) quedan atrapadas en ella en vez de cubrir la pantalla. */
 @keyframes pagina-entra {
   from {
     opacity: 0;
@@ -54,10 +57,13 @@
 }
 
 .pagina-entra {
-  animation: pagina-entra 0.28s ease-out both;
+  animation: pagina-entra 0.28s ease-out backwards;
 }
 
-/* Ventanas emergentes: el fondo se desvanece y la caja crece un poco */
+/* Ventanas emergentes: el fondo se desvanece y la caja crece un poco.
+   Se anima cada hijo y no el contenedor: un contenedor con opacidad animada
+   rompe el desenfoque (backdrop-filter) del fondo y deja la pantalla a medias.
+   `backwards` evita que la animación quede activa después de terminar. */
 @keyframes fundido {
   from {
     opacity: 0;
@@ -78,12 +84,12 @@
   }
 }
 
-.overlay-modal {
-  animation: fundido 0.2s ease-out both;
+.overlay-modal > :first-child {
+  animation: fundido 0.2s ease-out backwards;
 }
 
 .overlay-modal > :last-child {
-  animation: modal-sube 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: modal-sube 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
 }
 
 /* Paneles laterales: el fondo se desvanece y el panel entra desde la derecha */
@@ -99,16 +105,16 @@
 }
 
 .overlay-drawer > :first-child {
-  animation: fundido 0.25s ease-out both;
+  animation: fundido 0.25s ease-out backwards;
 }
 
 .overlay-drawer > :last-child {
-  animation: panel-entra 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: panel-entra 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .pagina-entra,
-  .overlay-modal,
+  .overlay-modal > :first-child,
   .overlay-modal > :last-child,
   .overlay-drawer > :first-child,
   .overlay-drawer > :last-child {
