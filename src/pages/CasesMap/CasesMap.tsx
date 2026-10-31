@@ -8,8 +8,17 @@ import {
   ubicacionService,
   type FiltrosMapa,
 } from '../../api/ubicacion/ubicacion.service'
+import {
+  CATEGORIAS,
+  ETIQUETAS_CATEGORIA,
+  LIMITE_MAPA_DETECCIONES,
+  clavesDetecciones,
+  deteccionesService,
+  type ParametrosDetecciones,
+} from '../../api/detecciones/detecciones.service'
 import { mensajeDeError } from '../../api/axios'
 import MapaUbicacion from '../../components/MapaUbicacion/MapaUbicacion'
+import { COLOR_CATEGORIA_MAPA } from '../../components/MapaUbicacion/config'
 import { useValorRetrasado } from '../../utils/useValorRetrasado'
 import CaseChatDrawer from '../CasesInbox/CaseChatDrawer'
 
@@ -22,6 +31,9 @@ export default function CasesMap() {
   const [desde, setDesde] = useState('')
   const [hasta, setHasta] = useState('')
   const [municipio, setMunicipio] = useState('')
+  // Capa aparte: las capturas de la app con ubicación, sobre el mismo mapa
+  const [verDetecciones, setVerDetecciones] = useState(false)
+  const [precision, setPrecision] = useState('')
   const [caso, setCaso] = useState<Solicitud | null>(null)
   const [errorAccion, setErrorAccion] = useState<string | null>(null)
   const [exportando, setExportando] = useState(false)
@@ -46,15 +58,35 @@ export default function CasesMap() {
     placeholderData: keepPreviousData,
   })
 
+  // Comparte fechas y municipio con los casos; el estado solo aplica a los casos
+  const precisionRetrasada = useValorRetrasado(precision.trim(), 400)
+  const precisionMax = Number(precisionRetrasada)
+  const parametrosDetecciones: ParametrosDetecciones = {
+    limite: LIMITE_MAPA_DETECCIONES,
+    ...(desde && { desde }),
+    ...(hasta && { hasta }),
+    ...(municipioRetrasado && { municipio: municipioRetrasado }),
+    ...(precisionRetrasada !== '' && Number.isFinite(precisionMax) && precisionMax >= 0 && { precisionMaxMetros: precisionMax }),
+  }
+  const capaDetecciones = useQuery({
+    queryKey: clavesDetecciones.mapa(parametrosDetecciones),
+    queryFn: () => deteccionesService.listarMapa(parametrosDetecciones),
+    enabled: verDetecciones && !rangoInvalido,
+    placeholderData: keepPreviousData,
+  })
+  const detecciones = verDetecciones ? (capaDetecciones.data ?? []) : []
+  const deteccionesRecortadas = detecciones.length >= LIMITE_MAPA_DETECCIONES
+
   const puntos = mapa.data?.puntos ?? []
   const recortado = mapa.data?.truncado ?? false
-  const hayFiltros = Boolean(estado || desde || hasta || municipio)
+  const hayFiltros = Boolean(estado || desde || hasta || municipio || precision)
 
   const limpiar = () => {
     setEstado('')
     setDesde('')
     setHasta('')
     setMunicipio('')
+    setPrecision('')
   }
 
   const exportar = async () => {
@@ -131,6 +163,32 @@ export default function CasesMap() {
             className={`${CAMPO} mt-1`}
           />
         </label>
+        <div className="flex flex-wrap items-end gap-x-4 gap-y-2 sm:col-span-2 lg:col-span-4">
+          <label className="flex items-center gap-2 pb-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={verDetecciones}
+              onChange={(e) => setVerDetecciones(e.target.checked)}
+              className="h-4 w-4 accent-agro-green"
+            />
+            Mostrar detecciones de la app
+          </label>
+          {verDetecciones && (
+            <label className="text-xs font-medium text-gray-500">
+              Precisión GPS máx. (m)
+              <input
+                type="number"
+                min={0}
+                inputMode="numeric"
+                value={precision}
+                onChange={(e) => setPrecision(e.target.value)}
+                placeholder="Ej: 50"
+                title="Solo aplica a las detecciones. Las capturas sin precisión informada también se ocultan."
+                className={`${CAMPO} mt-1 w-40`}
+              />
+            </label>
+          )}
+        </div>
         {hayFiltros && (
           <div className="flex items-end">
             <button type="button" onClick={limpiar} className="pb-2 text-xs text-gray-500 hover:text-agro-green hover:underline">
@@ -165,6 +223,17 @@ export default function CasesMap() {
           </button>
         </div>
       )}
+      {verDetecciones && capaDetecciones.isError && (
+        <p className="mt-3 rounded-xl bg-red-50 px-4 py-2 text-sm text-red-600">
+          {mensajeDeError(capaDetecciones.error, 'No se pudieron cargar las detecciones.')}
+        </p>
+      )}
+      {verDetecciones && deteccionesRecortadas && (
+        <p className="mt-3 rounded-xl bg-amber-50 px-4 py-2 text-sm text-amber-700">
+          Hay más detecciones de las que caben en el mapa: se muestran las {LIMITE_MAPA_DETECCIONES} más recientes. Afina
+          los filtros para ver el resto.
+        </p>
+      )}
       {errorAccion && <p className="mt-3 rounded-xl bg-red-50 px-4 py-2 text-sm text-red-600">{errorAccion}</p>}
 
       {/* Mapa y estados */}
@@ -186,17 +255,17 @@ export default function CasesMap() {
           </div>
         ) : (
           <div className="relative isolate">
-            <MapaUbicacion puntos={puntos} className="h-[32rem] w-full" onVerCaso={verCaso} />
-            {!rangoInvalido && puntos.length === 0 && (
+            <MapaUbicacion puntos={puntos} detecciones={detecciones} className="h-[32rem] w-full" onVerCaso={verCaso} />
+            {!rangoInvalido && puntos.length === 0 && detecciones.length === 0 && (
               <p className="pointer-events-none absolute inset-x-0 top-4 z-[500] mx-auto w-fit rounded-xl bg-white/95 px-4 py-2 text-sm text-gray-600 shadow">
-                No hay casos con ubicación para estos filtros
+                No hay casos ni detecciones con ubicación para estos filtros
               </p>
             )}
           </div>
         )}
       </div>
 
-      <Leyenda />
+      <Leyenda mostrarDetecciones={verDetecciones} />
 
       {caso && (
         <CaseChatDrawer solicitud={caso} nombreAgronomo={null} onClose={() => setCaso(null)} />
@@ -213,7 +282,7 @@ const COLOR_LEYENDA: Record<EstadoSolicitud, string> = {
   Descartada: 'bg-red-600',
 }
 
-function Leyenda() {
+function Leyenda({ mostrarDetecciones }: { mostrarDetecciones: boolean }) {
   return (
     <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-gray-500">
       {ESTADOS_SOLICITUD.map((e) => (
@@ -222,6 +291,13 @@ function Leyenda() {
           {e}
         </li>
       ))}
+      {mostrarDetecciones &&
+        CATEGORIAS.map((c) => (
+          <li key={c} className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rotate-45" style={{ background: COLOR_CATEGORIA_MAPA[c] }} />
+            Detección · {ETIQUETAS_CATEGORIA[c]}
+          </li>
+        ))}
     </ul>
   )
 }

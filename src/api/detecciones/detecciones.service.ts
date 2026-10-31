@@ -1,4 +1,5 @@
 import { api } from '../axios'
+import { descargarBlob } from '../descargas'
 
 // RF-07 — monitor de detecciones (solo administrador). La API rechaza con 400 cualquier
 // parámetro desconocido, y el resumen no acepta pagina ni limite.
@@ -78,11 +79,20 @@ export interface Deteccion {
   organo: Organo | null
   latitud: number | null
   longitud: number | null
+  // Margen de error del GPS en metros; null si el teléfono no lo informó
+  precisionMetros: number | null
   fecha: string
   recibidaEn: string
   // RF-07.4 — la inferencia devolvió confianza cero
   defectuosa: boolean
   revision: RevisionDeteccion
+}
+
+// Las que traen coordenadas: lo único que se puede dibujar en un mapa
+export type DeteccionConUbicacion = Deteccion & { latitud: number; longitud: number }
+
+export function tieneUbicacion(d: Deteccion): d is DeteccionConUbicacion {
+  return d.latitud !== null && d.longitud !== null
 }
 
 export interface PaginaDetecciones {
@@ -112,10 +122,20 @@ export type ParametrosDetecciones = Record<string, string | number | boolean>
 // Deben coincidir con los de la API
 export const LIMITE_DETECCIONES = 20
 export const MAX_LIMITE_DETECCIONES = 100
+// Tope de puntos de la capa del mapa de casos; coincide con el valor por defecto de la API
+export const LIMITE_MAPA_DETECCIONES = 500
 
 export const deteccionesService = {
   listar: (parametros: ParametrosDetecciones) =>
     api.get<PaginaDetecciones>('/detecciones', { params: parametros }).then((r) => r.data),
+  // Solo las que traen coordenadas, sin paginar: alimenta la capa del mapa de casos
+  listarMapa: (parametros: ParametrosDetecciones) =>
+    api.get<Deteccion[]>('/detecciones/mapa', { params: parametros }).then((r) => r.data as DeteccionConUbicacion[]),
+  // KML de la captura para Google Earth; la API responde 404 si no tiene ubicación
+  descargarKml: async (id: string) => {
+    const respuesta = await api.get<Blob>(`/detecciones/${id}/ubicacion.kml`, { responseType: 'blob' })
+    descargarBlob(respuesta.data, `deteccion-${id.slice(0, 8)}.kml`)
+  },
   // Sin pagina ni limite: la API los rechaza en el resumen
   resumen: (parametros: ParametrosDetecciones) =>
     api.get<ResumenDetecciones>('/detecciones/resumen', { params: parametros }).then((r) => r.data),
@@ -125,4 +145,5 @@ export const clavesDetecciones = {
   todas: ['detecciones'] as const,
   lista: (parametros: ParametrosDetecciones) => ['detecciones', 'lista', parametros] as const,
   resumen: (parametros: ParametrosDetecciones) => ['detecciones', 'resumen', parametros] as const,
+  mapa: (parametros: ParametrosDetecciones) => ['detecciones', 'mapa', parametros] as const,
 }

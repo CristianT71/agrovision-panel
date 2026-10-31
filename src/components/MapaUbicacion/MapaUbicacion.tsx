@@ -6,10 +6,17 @@ import 'leaflet/dist/leaflet.css'
 import 'react-leaflet-cluster/dist/assets/MarkerCluster.css'
 import 'react-leaflet-cluster/dist/assets/MarkerCluster.Default.css'
 import { codigoSolicitud, type EstadoSolicitud } from '../../api/solicitudes/solicitudes.service'
+import {
+  ETIQUETAS_CATEGORIA,
+  type Categoria,
+  type DeteccionConUbicacion,
+} from '../../api/detecciones/detecciones.service'
 import type { PuntoUbicacion } from '../../api/ubicacion/ubicacion.service'
+import { formatearFechaHora } from '../../utils/fechas'
 import { StatusBadge } from '../StatusBadge/StatusBadge'
+import { AccionesDeteccion } from './AccionesDeteccion'
 import { AccionesUbicacion, ResumenCoordenadas } from './AccionesUbicacion'
-import { CAPA_CALLES, CAPA_SATELITE, CENTRO_POR_DEFECTO, UMBRAL_CLUSTER } from './config'
+import { CAPA_CALLES, CAPA_SATELITE, CENTRO_POR_DEFECTO, COLOR_CATEGORIA_MAPA, UMBRAL_CLUSTER } from './config'
 
 // Mismos tonos que las insignias de StatusBadge (gris, azul, ámbar, verde, rojo)
 const COLOR_ESTADO: Record<EstadoSolicitud, string> = {
@@ -30,8 +37,20 @@ function iconoDeEstado(estado: EstadoSolicitud) {
   })
 }
 
+function iconoDeDeteccion(categoria: Categoria) {
+  return L.divIcon({
+    className: '',
+    html: `<span style="display:block;width:14px;height:14px;transform:rotate(45deg);background:${COLOR_CATEGORIA_MAPA[categoria]};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.5)"></span>`,
+    iconSize: [14, 14],
+    iconAnchor: [7, 7],
+    popupAnchor: [0, -9],
+  })
+}
+
 type Props = {
   puntos: PuntoUbicacion[]
+  // Capturas de la app con coordenadas (capa aparte de los casos)
+  detecciones?: DeteccionConUbicacion[]
   // Clases de tamaño del contenedor (el mapa necesita una altura explícita)
   className?: string
   // Sin esta función no se muestra el botón "Ver caso"
@@ -40,15 +59,29 @@ type Props = {
   zoomPunto?: number
 }
 
-export default function MapaUbicacion({ puntos, className = 'h-[28rem] w-full', onVerCaso, zoomPunto = 16 }: Props) {
-  const agrupar = puntos.length > UMBRAL_CLUSTER
-  const marcadores = puntos.map((p) => (
+export default function MapaUbicacion({
+  puntos,
+  detecciones = [],
+  className = 'h-[28rem] w-full',
+  onVerCaso,
+  zoomPunto = 16,
+}: Props) {
+  const agrupar = puntos.length + detecciones.length > UMBRAL_CLUSTER
+  const marcadoresCasos = puntos.map((p) => (
     <Marker key={p.solicitudId} position={[p.latitud, p.longitud]} icon={iconoDeEstado(p.estado)}>
       <Popup minWidth={230}>
         <PopupCaso punto={p} onVerCaso={onVerCaso} />
       </Popup>
     </Marker>
   ))
+  const marcadoresDetecciones = detecciones.map((d) => (
+    <Marker key={`deteccion-${d.id}`} position={[d.latitud, d.longitud]} icon={iconoDeDeteccion(d.categoria)}>
+      <Popup minWidth={210}>
+        <PopupDeteccion deteccion={d} />
+      </Popup>
+    </Marker>
+  ))
+  const marcadores = [...marcadoresCasos, ...marcadoresDetecciones]
 
   return (
     <MapContainer
@@ -57,7 +90,7 @@ export default function MapaUbicacion({ puntos, className = 'h-[28rem] w-full', 
       scrollWheelZoom
       className={`${className} z-0 overflow-hidden rounded-xl`}
     >
-      <AjustarVista puntos={puntos} zoomPunto={zoomPunto} />
+      <AjustarVista puntos={puntos} detecciones={detecciones} zoomPunto={zoomPunto} />
 
       {/* La atribución de la capa activa se muestra siempre (control de Leaflet, esquina inferior derecha) */}
       <LayersControl position="topright">
@@ -83,23 +116,48 @@ export default function MapaUbicacion({ puntos, className = 'h-[28rem] w-full', 
           ),
       )}
 
+      {detecciones.map(
+        (d) =>
+          d.precisionMetros != null &&
+          d.precisionMetros > 0 && (
+            <Circle
+              key={`precision-deteccion-${d.id}`}
+              center={[d.latitud, d.longitud]}
+              radius={d.precisionMetros}
+              pathOptions={{ color: COLOR_CATEGORIA_MAPA[d.categoria], weight: 1, fillOpacity: 0.1, dashArray: '4' }}
+            />
+          ),
+      )}
+
       {agrupar ? <MarkerClusterGroup chunkedLoading>{marcadores}</MarkerClusterGroup> : marcadores}
     </MapContainer>
   )
 }
 
 // Encuadra todos los puntos (o se acerca al único). Solo se recalcula cuando cambia el conjunto de puntos.
-function AjustarVista({ puntos, zoomPunto }: { puntos: PuntoUbicacion[]; zoomPunto: number }) {
+function AjustarVista({
+  puntos,
+  detecciones,
+  zoomPunto,
+}: {
+  puntos: PuntoUbicacion[]
+  detecciones: DeteccionConUbicacion[]
+  zoomPunto: number
+}) {
   const mapa = useMap()
-  const clave = useMemo(() => puntos.map((p) => p.solicitudId).join('|'), [puntos])
+  const clave = useMemo(
+    () => [...puntos.map((p) => p.solicitudId), ...detecciones.map((d) => d.id)].join('|'),
+    [puntos, detecciones],
+  )
 
   useEffect(() => {
-    if (puntos.length === 0) return
-    if (puntos.length === 1) {
-      mapa.setView([puntos[0].latitud, puntos[0].longitud], zoomPunto)
+    const coordenadas = [...puntos, ...detecciones].map((p) => [p.latitud, p.longitud] as [number, number])
+    if (coordenadas.length === 0) return
+    if (coordenadas.length === 1) {
+      mapa.setView(coordenadas[0], zoomPunto)
       return
     }
-    mapa.fitBounds(L.latLngBounds(puntos.map((p) => [p.latitud, p.longitud] as [number, number])), {
+    mapa.fitBounds(L.latLngBounds(coordenadas), {
       padding: [32, 32],
       maxZoom: 15,
     })
@@ -121,6 +179,32 @@ function PopupCaso({ punto: p, onVerCaso }: { punto: PuntoUbicacion; onVerCaso?:
       </p>
       <ResumenCoordenadas ubicacion={p} />
       <AccionesUbicacion ubicacion={p} onVerCaso={onVerCaso} compacto />
+    </div>
+  )
+}
+
+function PopupDeteccion({ deteccion: d }: { deteccion: DeteccionConUbicacion }) {
+  return (
+    <div className="space-y-1.5 text-xs text-gray-700">
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-semibold text-gray-900">Detección</span>
+        <span className="rounded-md bg-gray-100 px-2 py-0.5 font-medium text-gray-600">
+          {ETIQUETAS_CATEGORIA[d.categoria]}
+        </span>
+      </div>
+      <p>
+        {d.clasePredicha ?? 'Sin clase'}
+        {d.confianza !== null && ` · ${(d.confianza * 100).toFixed(1)}%`}
+      </p>
+      <p>
+        {d.productorNombre ?? 'Sin perfil'} · {d.municipio}
+      </p>
+      <p>{formatearFechaHora(d.fecha)}</p>
+      <p className="font-mono">
+        {d.latitud.toFixed(5)}, {d.longitud.toFixed(5)}
+        {d.precisionMetros !== null && ` (± ${Math.round(d.precisionMetros)} m)`}
+      </p>
+      <AccionesDeteccion deteccion={d} compacto />
     </div>
   )
 }

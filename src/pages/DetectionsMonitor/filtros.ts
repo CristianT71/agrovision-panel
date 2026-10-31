@@ -16,6 +16,8 @@ export interface FiltrosMonitor {
   modeloVersion?: string
   // Igualdad exacta sin distinguir mayúsculas (no es búsqueda parcial)
   municipio?: string
+  // Margen de error máximo del GPS, en metros; las capturas sin precisión informada quedan fuera
+  precisionMaxMetros?: number
   // YYYY-MM-DD; "hasta" incluye todo ese día
   desde?: string
   hasta?: string
@@ -82,6 +84,7 @@ export function aParametros(filtros: FiltrosMonitor): ParametrosDetecciones {
   if (filtros.modeloVersion) p.modeloVersion = filtros.modeloVersion
   const municipio = filtros.municipio?.trim()
   if (municipio) p.municipio = municipio
+  if (filtros.precisionMaxMetros !== undefined) p.precisionMaxMetros = filtros.precisionMaxMetros
   if (filtros.desde) p.desde = filtros.desde
   if (filtros.hasta) p.hasta = filtros.hasta
   return p

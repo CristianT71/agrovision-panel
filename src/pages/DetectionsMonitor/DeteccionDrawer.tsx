@@ -1,14 +1,19 @@
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import {
   ETIQUETAS_COMPUERTA,
   ETIQUETAS_CULTIVO,
   ETIQUETAS_ORGANO,
+  tieneUbicacion,
   type Deteccion,
 } from '../../api/detecciones/detecciones.service'
+import { AccionesDeteccion } from '../../components/MapaUbicacion/AccionesDeteccion'
 import { codigoSolicitud } from '../../api/solicitudes/solicitudes.service'
 import { formatearFechaHora } from '../../utils/fechas'
 import { BadgeCategoria, BadgeRevision } from './insignias'
 import { porcentajeConfianza } from './formato'
+
+// Leaflet pesa: el mapa se descarga solo cuando la detección trae ubicación
+const MapaUbicacion = lazy(() => import('../../components/MapaUbicacion/MapaUbicacion'))
 
 type Props = {
   deteccion: Deteccion
@@ -111,16 +116,33 @@ export default function DeteccionDrawer({ deteccion: d, onClose }: Props) {
             <Fila etiqueta="Productor">{d.productorNombre ?? 'Sin perfil registrado'}</Fila>
             <Fila etiqueta="Municipio">{d.municipio}</Fila>
             {cultivoOrgano.length > 0 && <Fila etiqueta="Cultivo · órgano">{cultivoOrgano.join(' · ')}</Fila>}
-            {d.latitud !== null && d.longitud !== null && (
-              <Fila etiqueta="Coordenadas">
-                <span className="font-mono">
-                  {d.latitud.toFixed(5)}, {d.longitud.toFixed(5)}
-                </span>
-              </Fila>
-            )}
             <Fila etiqueta="Capturada">{formatearFechaHora(d.fecha)}</Fila>
             <Fila etiqueta="Recibida">{formatearFechaHora(d.recibidaEn)}</Fila>
           </Grupo>
+
+          <section>
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-gray-500">Ubicación de la captura</h3>
+            {tieneUbicacion(d) ? (
+              <div className="mt-3 space-y-3">
+                <Suspense fallback={<div className="h-56 animate-pulse rounded-xl bg-gray-100" />}>
+                  <MapaUbicacion puntos={[]} detecciones={[d]} className="h-56 w-full" />
+                </Suspense>
+                <dl className="space-y-2.5 text-sm">
+                  <Fila etiqueta="Coordenadas">
+                    <span className="font-mono">
+                      {d.latitud.toFixed(5)}, {d.longitud.toFixed(5)}
+                    </span>
+                  </Fila>
+                  <Fila etiqueta="Precisión del GPS">
+                    {d.precisionMetros === null ? 'No informada' : `± ${Math.round(d.precisionMetros)} m`}
+                  </Fila>
+                </dl>
+                <AccionesDeteccion deteccion={d} />
+              </div>
+            ) : (
+              <p className="mt-3 text-sm text-gray-400">Sin ubicación disponible</p>
+            )}
+          </section>
         </div>
       </aside>
     </div>

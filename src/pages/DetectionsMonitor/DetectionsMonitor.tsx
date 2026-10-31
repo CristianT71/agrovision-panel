@@ -10,6 +10,7 @@ import {
   type Categoria,
   type Deteccion,
   type EstadoRevision,
+  tieneUbicacion,
 } from '../../api/detecciones/detecciones.service'
 import { clavesModelos, modelosService } from '../../api/modelos/modelos.service'
 import { mensajeDeError } from '../../api/axios'
@@ -45,10 +46,16 @@ export default function DetectionsMonitor() {
   const [filtros, setFiltros] = useState<FiltrosMonitor>(FILTROS_VACIOS)
   // El municipio es igualdad exacta: se aplica al salir del campo o con Enter, no en cada tecla
   const [municipio, setMunicipio] = useState('')
+  // Igual que el municipio: se aplica al salir del campo o con Enter
+  const [precision, setPrecision] = useState('')
   const [seleccionada, setSeleccionada] = useState<Deteccion | null>(null)
 
   const cambiar = (cambios: Partial<FiltrosMonitor>) => setFiltros((f) => ({ ...f, ...cambios }))
   const aplicarMunicipio = () => cambiar({ municipio: municipio.trim() || undefined })
+  const aplicarPrecision = () => {
+    const valor = Number(precision)
+    cambiar({ precisionMaxMetros: precision.trim() !== '' && Number.isFinite(valor) && valor >= 0 ? valor : undefined })
+  }
 
   const invalido = rangoInvalido(filtros)
   const parametros = aParametros(filtros)
@@ -97,6 +104,7 @@ export default function DetectionsMonitor() {
   const limpiar = () => {
     setFiltros(FILTROS_VACIOS)
     setMunicipio('')
+    setPrecision('')
   }
 
   const valorTarjeta = (valor: (t: NonNullable<typeof totales>) => React.ReactNode) =>
@@ -253,7 +261,7 @@ export default function DetectionsMonitor() {
         </div>
 
         {/* Resto de filtros: cinco campos de la misma altura que se acomodan según el ancho */}
-        <div className="mt-5 grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <div className="mt-5 grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           {/* RF-07.4 */}
           <label className="block">
             <span className="block text-xs font-medium text-gray-500">Datos</span>
@@ -296,6 +304,24 @@ export default function DetectionsMonitor() {
                 if (e.key === 'Enter') aplicarMunicipio()
               }}
               placeholder="Nombre exacto, ej: Jardín"
+              className={`mt-1.5 ${CAMPO} placeholder:text-gray-400`}
+            />
+          </label>
+
+          <label className="block">
+            <span className="block text-xs font-medium text-gray-500">Precisión GPS máx. (m)</span>
+            <input
+              type="number"
+              min={0}
+              inputMode="numeric"
+              value={precision}
+              onChange={(e) => setPrecision(e.target.value)}
+              onBlur={aplicarPrecision}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') aplicarPrecision()
+              }}
+              placeholder="Ej: 50"
+              title="Descarta las ubicaciones menos fiables. Las capturas sin precisión informada también se ocultan."
               className={`mt-1.5 ${CAMPO} placeholder:text-gray-400`}
             />
           </label>
@@ -362,11 +388,12 @@ export default function DetectionsMonitor() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] text-sm">
+            <table className="w-full min-w-[960px] text-sm">
               <thead>
                 <tr className="border-b border-gray-100 text-left text-xs uppercase tracking-wider text-gray-400">
                   <th className="px-5 py-3 font-medium">Capturada</th>
                   <th className="px-5 py-3 font-medium">Productor</th>
+                  <th className="px-5 py-3 font-medium">Ubicación</th>
                   <th className="px-5 py-3 font-medium">Predicción</th>
                   <th className="px-5 py-3 font-medium">Confianza</th>
                   <th className="px-5 py-3 font-medium">Modelo</th>
@@ -388,6 +415,20 @@ export default function DetectionsMonitor() {
                     <td className="px-5 py-3.5">
                       <p className="font-medium text-gray-900">{d.productorNombre ?? 'Sin perfil'}</p>
                       <p className="text-xs text-gray-500">{d.municipio}</p>
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-3.5">
+                      {tieneUbicacion(d) ? (
+                        <>
+                          <p className="font-mono text-xs text-gray-700">
+                            {d.latitud.toFixed(4)}, {d.longitud.toFixed(4)}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {d.precisionMetros === null ? 'Precisión no informada' : `± ${Math.round(d.precisionMetros)} m`}
+                          </p>
+                        </>
+                      ) : (
+                        <span className="text-xs text-gray-400">Sin ubicación</span>
+                      )}
                     </td>
                     <td className="px-5 py-3.5">
                       <div className="flex flex-wrap items-center gap-1.5">
