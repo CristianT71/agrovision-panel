@@ -96,7 +96,6 @@ export interface FiltrosSolicitudes {
 
 // Deben coincidir con los de la API
 export const LIMITE_SOLICITUDES = 20
-export const MAX_LIMITE_SOLICITUDES = 100
 
 export interface PaginaSolicitudes {
   datos: Solicitud[]

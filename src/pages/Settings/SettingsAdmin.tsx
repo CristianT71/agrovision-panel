@@ -15,7 +15,7 @@ import {
   type AjustesAdmin,
 } from './mockAjustes'
 import {
-  AvisoGuardado,
+  AvisoPendiente,
   Fila,
   InfoSistema,
   LogAuditoria,
@@ -23,16 +23,13 @@ import {
   Subgrupo,
   Tarjeta,
 } from './SettingsUI'
-import { useGuardado } from './useGuardado'
 
 export default function SettingsAdmin() {
   const [a, setA] = useState<AjustesAdmin>(AJUSTES_ADMIN)
-  const { guardado, avisar } = useGuardado()
 
-  // TODO: reemplazar por PATCH /ajustes/admin cuando el backend exponga el endpoint
+  // Vista previa: no se guarda en el servidor hasta que exista PATCH /ajustes/admin
   const cambiar = <C extends keyof AjustesAdmin>(clave: C, valor: AjustesAdmin[C]) => {
     setA((prev) => ({ ...prev, [clave]: valor }))
-    avisar()
   }
 
   return (
@@ -41,7 +38,7 @@ export default function SettingsAdmin() {
       <h1 className="text-2xl font-bold text-gray-900">Ajustes del sistema</h1>
       <p className="mt-1 text-sm text-gray-500">Configuración global de la plataforma AgroVisión</p>
 
-      {guardado && <AvisoGuardado />}
+      <AvisoPendiente />
 
       {/* ---------- Idioma y región ---------- */}
       <Tarjeta

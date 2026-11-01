@@ -58,9 +58,10 @@ export interface RespuestaMapa {
   limite: number
 }
 
-// De un día (YYYY-MM-DD) del filtro a lo que espera el API: inicio y fin de día en UTC
-export const desdeDelDia = (dia: string) => (dia ? `${dia}T00:00:00Z` : undefined)
-export const hastaDelDia = (dia: string) => (dia ? `${dia}T23:59:59Z` : undefined)
+// De un día (YYYY-MM-DD) del filtro a lo que espera el API: inicio y fin de día en hora de Colombia (UTC−5),
+// la misma con la que se muestran las fechas. En UTC se perdían o sobraban hasta 5 h en cada borde.
+export const desdeDelDia = (dia: string) => (dia ? `${dia}T00:00:00-05:00` : undefined)
+export const hastaDelDia = (dia: string) => (dia ? `${dia}T23:59:59.999-05:00` : undefined)
 
 // Se omiten los filtros vacíos
 function limpiarFiltros(filtros: FiltrosMapa): FiltrosMapa {

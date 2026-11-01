@@ -1,4 +1,4 @@
-import { Navigate, Outlet, useLocation } from 'react-router-dom'
+import { Navigate, Outlet } from 'react-router-dom'
 import { obtenerSesion, rutaInicial, type Rol } from '../../api/auth/session'
 
 type Props = {
@@ -8,11 +8,10 @@ type Props = {
 
 // RF-02.1 — cada módulo solo es accesible para su rol; sin sesión vigente se vuelve al login
 export default function RutaProtegida({ rol }: Props) {
-  const location = useLocation()
   const sesion = obtenerSesion()
 
   if (!sesion) {
-    return <Navigate to="/login" replace state={{ desde: location.pathname }} />
+    return <Navigate to="/login" replace />
   }
 
   if (rol && sesion.rol !== rol) {

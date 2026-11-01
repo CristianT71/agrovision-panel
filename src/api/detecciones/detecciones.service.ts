@@ -121,7 +121,6 @@ export type ParametrosDetecciones = Record<string, string | number | boolean>
 
 // Deben coincidir con los de la API
 export const LIMITE_DETECCIONES = 20
-export const MAX_LIMITE_DETECCIONES = 100
 // Tope de puntos de la capa del mapa de casos; coincide con el valor por defecto de la API
 export const LIMITE_MAPA_DETECCIONES = 500
 

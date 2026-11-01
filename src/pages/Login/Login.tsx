@@ -6,7 +6,6 @@ import { authService } from '../../api/auth/auth.service'
 import { agronomosService } from '../../api/agronomos/agronomos.service'
 import { mensajeDeError } from '../../api/axios'
 import {
-  calcularIniciales,
   guardarSesion,
   rolDesdeApi,
   rutaInicial,
@@ -130,11 +129,14 @@ export default function Login() {
       return
     }
     setLoading(true)
+    let tokenAbierto: string | null = null
     try {
       const { accessToken, usuario } = await authService.validarOtp({
         telefono: formattedPhone,
         codigo,
       })
+
+      tokenAbierto = accessToken
 
       // El rol de la sesión es el que confirma la API, no el que se eligió en pantalla
       const rol = rolDesdeApi(usuario.rol)
@@ -148,15 +150,18 @@ export default function Login() {
         rol === 'profesional' ? (await agronomosService.miPerfil(accessToken)).nombre : 'Administrador'
 
       guardarSesion(
-        { rol, nombre, iniciales: calcularIniciales(nombre), telefono: usuario.telefono },
+        { rol, nombre, telefono: usuario.telefono },
         accessToken,
       )
 
       // RF-01.7 — enrutar según el rol
       navigate(rutaInicial(rol), { replace: true })
+      tokenAbierto = null
     } catch (err: unknown) {
       setError(mensajeDeError(err, 'No se pudo validar el código.'))
     } finally {
+      // Si algo falló después de abrir la sesión en el servidor, no se deja huérfana
+      if (tokenAbierto) authService.cerrarSesion(tokenAbierto).catch(() => {})
       setLoading(false)
     }
   }

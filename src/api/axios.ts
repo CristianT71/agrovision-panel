@@ -4,6 +4,8 @@ import { cerrarSesion, obtenerToken } from './auth/session'
 // Sin Content-Type fijo: axios pone JSON para objetos y multipart (con su boundary) para FormData
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
+  // Sin tope, un API colgado dejaría los spinners girando para siempre
+  timeout: 30_000,
 })
 
 api.interceptors.request.use((config) => {
@@ -13,7 +15,7 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// RNF-02.2 — el token vence a los 30 min: un 401 cierra la sesión y vuelve al login.
+// RNF-02.2 — la sesión se cierra por inactividad (ver useCierrePorInactividad) o vence en el servidor: un 401 cierra la sesión y vuelve al login.
 // En /auth el 401 significa "código inválido" y lo maneja la propia pantalla.
 api.interceptors.response.use(
   (respuesta) => respuesta,

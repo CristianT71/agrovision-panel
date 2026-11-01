@@ -6,7 +6,6 @@ export type RolApi = 'admin' | 'agronomo' | 'productor'
 export type Sesion = {
   rol: Rol
   nombre: string
-  iniciales: string
   telefono: string
 }
 

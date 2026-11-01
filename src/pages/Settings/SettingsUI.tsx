@@ -80,16 +80,14 @@ export function Selector({
   )
 }
 
-export function AvisoGuardado() {
+// Los ajustes aún no tienen endpoint: se avisa para no aparentar que un cambio de seguridad quedó aplicado
+export function AvisoPendiente() {
   return (
     <div
       role="status"
-      className="mt-5 flex items-center gap-2.5 rounded-xl bg-[#dcf4e4] px-4 py-3 text-sm font-semibold text-agro-green"
+      className="mt-5 rounded-xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800"
     >
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="h-4 w-4 shrink-0">
-        <path d="M5 12.5l4.5 4.5L19 7" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-      Configuración guardada
+      Vista previa: estos ajustes todavía no se guardan en el servidor, así que los cambios no se aplican ni se conservan.
     </div>
   )
 }

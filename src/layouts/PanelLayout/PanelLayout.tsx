@@ -1,7 +1,9 @@
-import { useEffect } from 'react'
+import { Suspense, useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import Sidebar from '../../components/Sidebar/Sidebar'
 import Topbar from '../../components/Topbar/Topbar'
+import ErrorBoundary from '../../components/ErrorBoundary/ErrorBoundary'
+import { useCierrePorInactividad } from './useCierrePorInactividad'
 import { obtenerSesion, calcularIniciales } from '../../api/auth/session'
 
 export default function PanelLayout() {
@@ -9,6 +11,8 @@ export default function PanelLayout() {
   const sesion = obtenerSesion()
   const nombre = sesion?.nombre ?? 'Usuario'
   const esAdmin = sesion?.rol === 'administrador'
+
+  useCierrePorInactividad()
 
   // Si en otra pestaña se inicia o se cierra sesión con otra cuenta, esta pestaña se recarga
   // para no seguir actuando con un usuario distinto al que muestra la pantalla.
@@ -32,9 +36,14 @@ export default function PanelLayout() {
         />
         <main className="flex-1 overflow-y-auto px-8 py-8">
           {/* La clave reinicia la animación al cambiar de pantalla, no al cambiar de filtro dentro de ella */}
-          <div key={ruta} className="pagina-entra">
-            <Outlet />
-          </div>
+          {/* El boundary se reinicia al cambiar de ruta: un fallo en una pantalla no bloquea el menú */}
+          <ErrorBoundary key={ruta}>
+            <Suspense fallback={<p className="py-10 text-center text-sm text-gray-400">Cargando...</p>}>
+              <div className="pagina-entra">
+                <Outlet />
+              </div>
+            </Suspense>
+          </ErrorBoundary>
         </main>
       </div>
     </div>

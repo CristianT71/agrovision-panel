@@ -41,7 +41,6 @@ export interface ResumenTelemetria {
 }
 
 // La API rechaza ventanas de más de 90 días
-export const MAX_DIAS_TELEMETRIA = 90
 
 export const telemetriaService = {
   resumen: ({ desde, hasta }: { desde: Date; hasta: Date }) =>

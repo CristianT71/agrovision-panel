@@ -9,23 +9,20 @@ import {
   type Ajustes,
 } from './mockAjustes'
 import {
-  AvisoGuardado,
+  AvisoPendiente,
   Fila,
   InfoSistema,
   Selector,
   Subgrupo,
   Tarjeta,
 } from './SettingsUI'
-import { useGuardado } from './useGuardado'
 
 export default function SettingsAgronomo() {
   const [ajustes, setAjustes] = useState<Ajustes>(AJUSTES)
-  const { guardado, avisar } = useGuardado()
 
-  // TODO: reemplazar por PATCH /ajustes cuando el backend exponga el endpoint
+  // Vista previa: no se guarda en el servidor hasta que exista PATCH /ajustes
   const cambiar = <C extends keyof Ajustes>(clave: C, valor: Ajustes[C]) => {
     setAjustes((prev) => ({ ...prev, [clave]: valor }))
-    avisar()
   }
 
   return (
@@ -34,7 +31,7 @@ export default function SettingsAgronomo() {
       <h1 className="text-2xl font-bold text-gray-900">Ajustes</h1>
       <p className="mt-1 text-sm text-gray-500">Preferencias de tu cuenta en AgroVisión</p>
 
-      {guardado && <AvisoGuardado />}
+      <AvisoPendiente />
 
       {/* ---------- Idioma y región ---------- */}
       <Tarjeta

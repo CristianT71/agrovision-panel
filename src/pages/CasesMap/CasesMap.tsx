@@ -63,8 +63,8 @@ export default function CasesMap() {
   const precisionMax = Number(precisionRetrasada)
   const parametrosDetecciones: ParametrosDetecciones = {
     limite: LIMITE_MAPA_DETECCIONES,
-    ...(desde && { desde }),
-    ...(hasta && { hasta }),
+    ...(desde && { desde: desdeDelDia(desde) }),
+    ...(hasta && { hasta: hastaDelDia(hasta) }),
     ...(municipioRetrasado && { municipio: municipioRetrasado }),
     ...(precisionRetrasada !== '' && Number.isFinite(precisionMax) && precisionMax >= 0 && { precisionMaxMetros: precisionMax }),
   }

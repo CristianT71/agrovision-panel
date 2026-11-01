@@ -5,6 +5,7 @@ import type {
   ParametrosDetecciones,
   ResumenCategoria,
 } from '../../api/detecciones/detecciones.service'
+import { desdeDelDia, hastaDelDia } from '../../api/ubicacion/ubicacion.service'
 
 export interface FiltrosMonitor {
   // incluir agrupa con OR; excluir quita con AND NOT. Una categoría nunca está en las dos.
@@ -85,8 +86,9 @@ export function aParametros(filtros: FiltrosMonitor): ParametrosDetecciones {
   const municipio = filtros.municipio?.trim()
   if (municipio) p.municipio = municipio
   if (filtros.precisionMaxMetros !== undefined) p.precisionMaxMetros = filtros.precisionMaxMetros
-  if (filtros.desde) p.desde = filtros.desde
-  if (filtros.hasta) p.hasta = filtros.hasta
+  // Los días se interpretan en hora de Colombia, igual que las fechas que se muestran
+  if (filtros.desde) p.desde = desdeDelDia(filtros.desde) as string
+  if (filtros.hasta) p.hasta = hastaDelDia(filtros.hasta) as string
   return p
 }
 

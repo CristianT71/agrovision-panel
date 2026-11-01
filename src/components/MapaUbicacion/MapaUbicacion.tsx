@@ -19,6 +19,9 @@ import { AccionesUbicacion, ResumenCoordenadas } from './AccionesUbicacion'
 import { CAPA_CALLES, CAPA_SATELITE, CENTRO_POR_DEFECTO, COLOR_CATEGORIA_MAPA, UMBRAL_CLUSTER } from './config'
 
 // Mismos tonos que las insignias de StatusBadge (gris, azul, ámbar, verde, rojo)
+// Una precisión absurda del GPS (p. ej. 10 000 km) no debe tapar el mapa con un círculo gigante
+const RADIO_MAXIMO_PRECISION_M = 5000
+
 const COLOR_ESTADO: Record<EstadoSolicitud, string> = {
   Pendiente: '#6b7280',
   Enviada: '#1d4ed8',
@@ -110,7 +113,7 @@ export default function MapaUbicacion({
             <Circle
               key={`precision-${p.solicitudId}`}
               center={[p.latitud, p.longitud]}
-              radius={p.precisionMetros}
+              radius={Math.min(p.precisionMetros, RADIO_MAXIMO_PRECISION_M)}
               pathOptions={{ color: COLOR_ESTADO[p.estado], weight: 1, fillOpacity: 0.12 }}
             />
           ),
@@ -123,7 +126,7 @@ export default function MapaUbicacion({
             <Circle
               key={`precision-deteccion-${d.id}`}
               center={[d.latitud, d.longitud]}
-              radius={d.precisionMetros}
+              radius={Math.min(d.precisionMetros, RADIO_MAXIMO_PRECISION_M)}
               pathOptions={{ color: COLOR_CATEGORIA_MAPA[d.categoria], weight: 1, fillOpacity: 0.1, dashArray: '4' }}
             />
           ),
