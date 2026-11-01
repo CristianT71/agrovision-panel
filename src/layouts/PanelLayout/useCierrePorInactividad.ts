@@ -1,34 +1,18 @@
 import { useEffect } from 'react'
 import { authService } from '../../api/auth/auth.service'
+import { registrarActividad, ultimaActividad } from '../../api/auth/actividad'
 import { cerrarSesion, obtenerToken } from '../../api/auth/session'
 
 // RNF-02.2 — a los 30 min sin actividad real del usuario se cierra la sesión. El servidor no puede
 // decidirlo por sí solo: el sondeo de notificaciones y monitores cuenta allí como actividad.
 export const MINUTOS_INACTIVIDAD = 30
-const CLAVE_ACTIVIDAD = 'agrovision_ultima_actividad'
 const EVENTOS = ['pointerdown', 'keydown', 'wheel', 'touchstart'] as const
-
-function ultimaActividad(): number {
-  try {
-    return Number(localStorage.getItem(CLAVE_ACTIVIDAD)) || Date.now()
-  } catch {
-    return Date.now()
-  }
-}
 
 export function useCierrePorInactividad() {
   useEffect(() => {
     const limite = MINUTOS_INACTIVIDAD * 60_000
 
-    // La actividad se comparte entre pestañas: usar otra pestaña mantiene viva a esta
-    const registrar = () => {
-      try {
-        localStorage.setItem(CLAVE_ACTIVIDAD, String(Date.now()))
-      } catch {
-        // Sin almacenamiento: cada pestaña cuenta por su cuenta
-      }
-    }
-    registrar()
+    registrarActividad()
 
     const salir = () => {
       const token = obtenerToken()
@@ -52,7 +36,7 @@ export function useCierrePorInactividad() {
       const ahora = Date.now()
       if (ahora - ultimoRegistro > 5_000) {
         ultimoRegistro = ahora
-        registrar()
+        registrarActividad()
       }
     }
 

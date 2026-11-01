@@ -1,5 +1,9 @@
 import axios from 'axios'
+import { ultimaActividad } from './auth/actividad'
 import { cerrarSesion, obtenerToken } from './auth/session'
+
+// Una petición hecha con el usuario quieto más de este tiempo es un sondeo automático
+const SEGUNDOS_PARA_SONDEO = 60
 
 // Sin Content-Type fijo: axios pone JSON para objetos y multipart (con su boundary) para FormData
 export const api = axios.create({
@@ -12,6 +16,9 @@ api.interceptors.request.use((config) => {
   const token = obtenerToken()
   // Si la petición ya trae su token (ej. justo después del login) no se reemplaza
   if (token && !config.headers.Authorization) config.headers.Authorization = `Bearer ${token}`
+  // El servidor no cuenta como actividad lo que el panel consulta solo (notificaciones, monitores):
+  // así la sesión de una pestaña desatendida caduca a los 30 min (RNF-02.2)
+  if (Date.now() - ultimaActividad() > SEGUNDOS_PARA_SONDEO * 1000) config.headers['X-Sondeo'] = '1'
   return config
 })
 
