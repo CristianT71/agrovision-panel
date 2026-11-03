@@ -278,11 +278,11 @@ export default function CasesInbox() {
                     <div className="h-1.5 w-24 overflow-hidden rounded-full bg-gray-100">
                       <div
                         className="h-full rounded-full bg-agro-green"
-                        style={{ width: `${porcentajeConfianza(s.confianzaIa)}%` }}
+                        style={{ width: `${porcentajeConfianza(s.confianzaIa) ?? 0}%` }}
                       />
                     </div>
                     <span className="text-xs font-medium text-gray-600">
-                      {porcentajeConfianza(s.confianzaIa)}%
+                      {porcentajeConfianza(s.confianzaIa) === null ? 'Sin dato' : `${porcentajeConfianza(s.confianzaIa)}%`}
                     </span>
                   </div>
                 </div>

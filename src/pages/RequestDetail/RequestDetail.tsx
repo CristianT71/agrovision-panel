@@ -215,17 +215,17 @@ export default function RequestDetail() {
             <div className="mt-4 space-y-4 text-sm">
               <Dato icono="chip" etiqueta="Versión del modelo">
                 <span className="font-mono font-semibold text-gray-900" title={s.modeloVersionId ?? undefined}>
-                  {versionModeloCorta(s.modeloVersionId)}
+                  {s.modeloVersion ? `v${s.modeloVersion}` : versionModeloCorta(s.modeloVersionId)}
                 </span>
               </Dato>
 
               <div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-500">Nivel de confianza</span>
-                  <span className="font-semibold text-gray-900">{confianza}%</span>
+                  <span className="font-semibold text-gray-900">{confianza === null ? 'Sin dato' : `${confianza}%`}</span>
                 </div>
                 <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-gray-100">
-                  <div className="h-full rounded-full bg-agro-green" style={{ width: `${confianza}%` }} />
+                  <div className="h-full rounded-full bg-agro-green" style={{ width: `${confianza ?? 0}%` }} />
                 </div>
               </div>
             </div>

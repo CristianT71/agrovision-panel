@@ -26,8 +26,10 @@ export interface Solicitud {
   municipio: string
   vereda: string
   finca: string
-  confianzaIa: number
+  confianzaIa: number | null
   modeloVersionId: string | null
+  // Solo viene en el detalle: versión legible del modelo que usa el celular (p. ej. 1.3.2)
+  modeloVersion?: string | null
   respuestaProfesional: string | null
   tipoResultado: TipoResultado | null
   plagaIdentificada: string | null
@@ -219,7 +221,9 @@ export const clavesSolicitudes = {
 }
 
 // La API puede enviar la confianza como fracción (0.87) o como porcentaje (87)
-export function porcentajeConfianza(valor: number): number {
+// null = la solicitud no trae un análisis de IA con confianza (sin captura, o el modelo no se decidió)
+export function porcentajeConfianza(valor: number | null): number | null {
+  if (valor === null) return null
   return Math.round(valor <= 1 ? valor * 100 : valor)
 }
 
@@ -230,5 +234,5 @@ export function codigoSolicitud(id: string): string {
 
 // El id de la versión del modelo es un UUID: en pantalla basta con el inicio
 export function versionModeloCorta(modeloVersionId: string | null): string {
-  return modeloVersionId ? `v-${modeloVersionId.slice(0, 8)}` : 'Sin versión'
+  return modeloVersionId ? `v-${modeloVersionId.slice(0, 8)}` : 'Sin análisis de IA'
 }
