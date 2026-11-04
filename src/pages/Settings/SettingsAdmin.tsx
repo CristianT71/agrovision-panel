@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Toggle from '../../components/Toggle/Toggle'
 import CorreoNotificaciones from './CorreoNotificaciones'
+import PoliticaDatosTarjeta from './PoliticaDatosTarjeta'
 import {
   AJUSTES_ADMIN,
   CANALES_DESPLIEGUE,
@@ -245,6 +246,9 @@ export default function SettingsAdmin() {
           <span className="text-sm text-gray-500">{RETENCION_AUDITORIA}</span>
         </Fila>
       </Tarjeta>
+
+      {/* ---------- Habeas data (Ley 1581 de 2012) ---------- */}
+      <PoliticaDatosTarjeta />
 
       {/* ---------- Auditoría — RF-09.4 ---------- */}
       <Tarjeta titulo="Auditoría y cumplimiento">
