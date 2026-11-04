@@ -1,6 +1,7 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import L from 'leaflet'
 import { Circle, LayersControl, MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet'
+import type { Marker as MarcadorLeaflet } from 'leaflet'
 import MarkerClusterGroup from 'react-leaflet-cluster'
 import 'leaflet/dist/leaflet.css'
 import 'react-leaflet-cluster/dist/assets/MarkerCluster.css'
@@ -60,6 +61,8 @@ type Props = {
   onVerCaso?: (solicitudId: string) => void
   // Zoom cuando hay un solo punto (detalle de una solicitud)
   zoomPunto?: number
+  // Caso al que se acerca el mapa y cuyo popup se abre (viene de la bandeja de casos)
+  enfocarId?: string
 }
 
 export default function MapaUbicacion({
@@ -68,15 +71,27 @@ export default function MapaUbicacion({
   className = 'h-[28rem] w-full',
   onVerCaso,
   zoomPunto = 16,
+  enfocarId,
 }: Props) {
   const agrupar = puntos.length + detecciones.length > UMBRAL_CLUSTER
-  const marcadoresCasos = puntos.map((p) => (
-    <Marker key={p.solicitudId} position={[p.latitud, p.longitud]} icon={iconoDeEstado(p.estado)}>
+  const marcadorEnfocado = useRef<MarcadorLeaflet | null>(null)
+  const crearMarcador = (p: PuntoUbicacion) => (
+    <Marker
+      key={p.solicitudId}
+      position={[p.latitud, p.longitud]}
+      icon={iconoDeEstado(p.estado)}
+      ref={(m) => {
+        if (p.solicitudId === enfocarId) marcadorEnfocado.current = m
+      }}
+    >
       <Popup minWidth={230}>
         <PopupCaso punto={p} onVerCaso={onVerCaso} />
       </Popup>
     </Marker>
-  ))
+  )
+  // El caso enfocado va fuera del grupo: dentro de un cluster no se puede abrir su popup
+  const casoEnfocado = enfocarId ? puntos.find((p) => p.solicitudId === enfocarId) : undefined
+  const marcadoresCasos = puntos.filter((p) => p !== casoEnfocado).map(crearMarcador)
   const marcadoresDetecciones = detecciones.map((d) => (
     <Marker key={`deteccion-${d.id}`} position={[d.latitud, d.longitud]} icon={iconoDeDeteccion(d.categoria)}>
       <Popup minWidth={210}>
@@ -85,6 +100,7 @@ export default function MapaUbicacion({
     </Marker>
   ))
   const marcadores = [...marcadoresCasos, ...marcadoresDetecciones]
+  const marcadorFueraDelGrupo = casoEnfocado ? crearMarcador(casoEnfocado) : null
 
   return (
     <MapContainer
@@ -93,7 +109,13 @@ export default function MapaUbicacion({
       scrollWheelZoom
       className={`${className} z-0 overflow-hidden rounded-xl`}
     >
-      <AjustarVista puntos={puntos} detecciones={detecciones} zoomPunto={zoomPunto} />
+      <AjustarVista
+        puntos={puntos}
+        detecciones={detecciones}
+        zoomPunto={zoomPunto}
+        enfocar={casoEnfocado}
+        marcadorEnfocado={marcadorEnfocado}
+      />
 
       {/* La atribución de la capa activa se muestra siempre (control de Leaflet, esquina inferior derecha) */}
       <LayersControl position="topright">
@@ -133,6 +155,7 @@ export default function MapaUbicacion({
       )}
 
       {agrupar ? <MarkerClusterGroup chunkedLoading>{marcadores}</MarkerClusterGroup> : marcadores}
+      {marcadorFueraDelGrupo}
     </MapContainer>
   )
 }
@@ -142,18 +165,30 @@ function AjustarVista({
   puntos,
   detecciones,
   zoomPunto,
+  enfocar,
+  marcadorEnfocado,
 }: {
   puntos: PuntoUbicacion[]
   detecciones: DeteccionConUbicacion[]
   zoomPunto: number
+  enfocar?: PuntoUbicacion
+  marcadorEnfocado: React.RefObject<MarcadorLeaflet | null>
 }) {
   const mapa = useMap()
   const clave = useMemo(
-    () => [...puntos.map((p) => p.solicitudId), ...detecciones.map((d) => d.id)].join('|'),
-    [puntos, detecciones],
+    () =>
+      [...puntos.map((p) => p.solicitudId), ...detecciones.map((d) => d.id), enfocar?.solicitudId ?? ''].join('|'),
+    [puntos, detecciones, enfocar],
   )
 
   useEffect(() => {
+    // Viene de "ver en el mapa": se acerca al caso y se abre su popup
+    if (enfocar) {
+      mapa.setView([enfocar.latitud, enfocar.longitud], 17)
+      const abrir = window.setTimeout(() => marcadorEnfocado.current?.openPopup(), 250)
+      return () => window.clearTimeout(abrir)
+    }
+
     const coordenadas = [...puntos, ...detecciones].map((p) => [p.latitud, p.longitud] as [number, number])
     if (coordenadas.length === 0) return
     if (coordenadas.length === 1) {

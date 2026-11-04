@@ -1,6 +1,7 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { ESTADOS_SOLICITUD, solicitudesService, type EstadoSolicitud, type Solicitud } from '../../api/solicitudes/solicitudes.service'
+import { ESTADOS_SOLICITUD, codigoSolicitud, solicitudesService, type EstadoSolicitud, type Solicitud } from '../../api/solicitudes/solicitudes.service'
 import {
   clavesUbicacion,
   desdeDelDia,
@@ -27,6 +28,9 @@ const CAMPO =
 
 // RF-02.3 — mapa satelital de los casos (solo administrador)
 export default function CasesMap() {
+  // Viene de la bandeja de casos: /mapa?caso=<id> acerca el mapa a ese caso
+  const [parametros, setParametros] = useSearchParams()
+  const enfocarId = parametros.get('caso') ?? undefined
   const [estado, setEstado] = useState<EstadoSolicitud | ''>('')
   const [desde, setDesde] = useState('')
   const [hasta, setHasta] = useState('')
@@ -79,6 +83,8 @@ export default function CasesMap() {
 
   const puntos = mapa.data?.puntos ?? []
   const recortado = mapa.data?.truncado ?? false
+  const casoEnfocadoVisible = enfocarId ? puntos.some((p) => p.solicitudId === enfocarId) : false
+  const quitarEnfoque = () => setParametros({}, { replace: true })
   const hayFiltros = Boolean(estado || desde || hasta || municipio || precision)
 
   const limpiar = () => {
@@ -198,6 +204,23 @@ export default function CasesMap() {
         )}
       </div>
 
+      {enfocarId && (
+        <div
+          className={`mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-2 text-sm ${
+            mapa.isSuccess && !casoEnfocadoVisible ? 'bg-amber-50 text-amber-700' : 'bg-[#e8f7ee] text-agro-green'
+          }`}
+        >
+          <span>
+            {mapa.isSuccess && !casoEnfocadoVisible
+              ? `El caso ${codigoSolicitud(enfocarId)} no aparece en el mapa: no tiene ubicación, o los filtros lo ocultan.`
+              : `Mostrando la ubicación del caso ${codigoSolicitud(enfocarId)}`}
+          </span>
+          <button type="button" onClick={quitarEnfoque} className="text-xs font-medium underline">
+            Ver todos los casos
+          </button>
+        </div>
+      )}
+
       {rangoInvalido && (
         <p className="mt-3 rounded-xl bg-amber-50 px-4 py-2 text-sm text-amber-700">
           La fecha inicial no puede ser posterior a la final.
@@ -255,7 +278,13 @@ export default function CasesMap() {
           </div>
         ) : (
           <div className="relative isolate">
-            <MapaUbicacion puntos={puntos} detecciones={detecciones} className="h-[32rem] w-full" onVerCaso={verCaso} />
+            <MapaUbicacion
+              puntos={puntos}
+              detecciones={detecciones}
+              className="h-[32rem] w-full"
+              onVerCaso={verCaso}
+              enfocarId={enfocarId}
+            />
             {!rangoInvalido && puntos.length === 0 && detecciones.length === 0 && (
               <p className="pointer-events-none absolute inset-x-0 top-4 z-[500] mx-auto w-fit rounded-xl bg-white/95 px-4 py-2 text-sm text-gray-600 shadow">
                 No hay casos ni detecciones con ubicación para estos filtros

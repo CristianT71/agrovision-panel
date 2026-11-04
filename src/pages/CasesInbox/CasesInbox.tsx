@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 import {
   ESTADOS_SOLICITUD,
   LIMITE_SOLICITUDES,
@@ -194,146 +195,195 @@ export default function CasesInbox() {
         </div>
       )}
 
-      {/* Listado */}
-      <div className="mt-5 space-y-3">
-        {consulta.isPending ? (
-          <p className="rounded-xl bg-white px-5 py-10 text-center text-sm text-gray-400">
-            Cargando casos...
-          </p>
-        ) : consulta.isError ? (
-          <div className="rounded-xl bg-red-50 px-5 py-10 text-center text-sm text-red-600">
-            <p>{mensajeDeError(consulta.error, 'No se pudieron cargar los casos.')}</p>
-            <button
-              type="button"
-              onClick={() => consulta.refetch()}
-              className="mt-3 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 transition hover:border-red-300"
-            >
-              Reintentar
-            </button>
-          </div>
-        ) : sinCasos ? (
-          <div className="rounded-xl bg-white px-5 py-10 text-center">
-            <p className="text-sm font-medium text-gray-600">Aún no hay casos</p>
-            <p className="mt-1 text-sm text-gray-400">
-              Aparecerán cuando los productores envíen solicitudes desde la app
-            </p>
-          </div>
-        ) : visibles.length === 0 ? (
-          <p className="rounded-xl bg-white px-5 py-10 text-center text-sm text-gray-400">
-            No hay casos que coincidan con el filtro.
-          </p>
-        ) : (
-          visibles.map((s) => {
-            const nombreAgronomo = s.agronomoId ? (nombres.get(s.agronomoId) ?? null) : null
-            return (
-              <article key={s.id} className="flex items-center gap-4 rounded-xl bg-white p-4">
-                {/* RF-03.6 — imagen de evidencia */}
-                <MiniaturaSolicitud solicitudId={s.id} />
-
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-mono text-xs text-gray-400">{codigoSolicitud(s.id)}</span>
-                    <StatusBadge estado={s.estado} />
-                    {s.plagaIdentificada && <PlagaBadge plaga={s.plagaIdentificada} />}
-                  </div>
-
-                  <p className="mt-1 font-semibold text-gray-900">
-                    {s.productorNombre ?? 'Productor sin perfil'}
-                    <span className="font-normal text-gray-500"> · {s.finca}</span>
-                  </p>
-
-                  <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500">
-                    <span className="inline-flex items-center gap-1">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-3.5 w-3.5">
-                        <path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11Z" strokeLinejoin="round" />
-                        <circle cx="12" cy="10" r="2.5" />
-                      </svg>
-                      {s.vereda} · {s.municipio}
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-3.5 w-3.5">
-                        <rect x="7" y="7" width="10" height="10" rx="2" />
-                        <path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3" strokeLinecap="round" />
-                      </svg>
-                      {versionModeloCorta(s.modeloVersionId)}
-                    </span>
-                    <span className="text-gray-400">{haceCuanto(s.fecha)}</span>
-                  </p>
-
-                  {/* Agrónomo vinculado */}
-                  {s.agronomoId && (
-                    <p className="mt-2 flex items-center gap-2 text-sm text-gray-600">
-                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-agro-green text-[10px] font-semibold text-white">
-                        {nombreAgronomo ? iniciales(nombreAgronomo) : 'AG'}
-                      </span>
-                      Asignado a{' '}
-                      <strong className="font-semibold text-gray-800">
-                        {nombreAgronomo ?? 'agrónomo no activo'}
-                      </strong>
+      {/* Listado en tabla */}
+      <div className="mt-5 overflow-hidden rounded-2xl bg-white">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1100px] text-sm">
+            <thead>
+              <tr className="border-b border-gray-100 text-left text-xs uppercase tracking-wider text-gray-400">
+                <th className="px-5 py-4 font-medium">Caso</th>
+                <th className="px-5 py-4 font-medium">Productor / Finca</th>
+                <th className="px-5 py-4 font-medium">Ubicación</th>
+                <th className="px-5 py-4 font-medium">Modelo IA</th>
+                <th className="px-5 py-4 font-medium">Agrónomo</th>
+                <th className="px-5 py-4 text-right font-medium">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {consulta.isPending ? (
+                <tr>
+                  <td colSpan={6} className="px-5 py-12 text-center text-sm text-gray-400">
+                    Cargando casos...
+                  </td>
+                </tr>
+              ) : consulta.isError ? (
+                <tr>
+                  <td colSpan={6} className="px-5 py-12 text-center text-sm text-red-600">
+                    <p>{mensajeDeError(consulta.error, 'No se pudieron cargar los casos.')}</p>
+                    <button
+                      type="button"
+                      onClick={() => consulta.refetch()}
+                      className="mt-3 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 transition hover:border-red-300"
+                    >
+                      Reintentar
+                    </button>
+                  </td>
+                </tr>
+              ) : sinCasos ? (
+                <tr>
+                  <td colSpan={6} className="px-5 py-12 text-center">
+                    <p className="text-sm font-medium text-gray-600">Aún no hay casos</p>
+                    <p className="mt-1 text-sm text-gray-400">
+                      Aparecerán cuando los productores envíen solicitudes desde la app
                     </p>
-                  )}
+                  </td>
+                </tr>
+              ) : visibles.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-5 py-12 text-center text-sm text-gray-400">
+                    No hay casos que coincidan con el filtro.
+                  </td>
+                </tr>
+              ) : (
+                visibles.map((s) => {
+                  const nombreAgronomo = s.agronomoId ? (nombres.get(s.agronomoId) ?? null) : null
+                  const confianza = porcentajeConfianza(s.confianzaIa)
+                  return (
+                    <tr key={s.id} className="border-b border-gray-50 last:border-0 hover:bg-[#fafbfa]">
+                      {/* Caso: evidencia (RF-03.6), código, estado y plaga */}
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <MiniaturaSolicitud solicitudId={s.id} />
+                          <div className="min-w-0 space-y-1">
+                            <p className="font-mono text-xs text-gray-400">{codigoSolicitud(s.id)}</p>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <StatusBadge estado={s.estado} />
+                              {s.plagaIdentificada && <PlagaBadge plaga={s.plagaIdentificada} />}
+                            </div>
+                            <p className="text-xs text-gray-400">{haceCuanto(s.fecha)}</p>
+                          </div>
+                        </div>
+                      </td>
 
-                  <div className="mt-2 flex items-center gap-2">
-                    <span className="text-xs text-gray-400">Confianza IA</span>
-                    <div className="h-1.5 w-24 overflow-hidden rounded-full bg-gray-100">
-                      <div
-                        className="h-full rounded-full bg-agro-green"
-                        style={{ width: `${porcentajeConfianza(s.confianzaIa) ?? 0}%` }}
-                      />
-                    </div>
-                    <span className="text-xs font-medium text-gray-600">
-                      {porcentajeConfianza(s.confianzaIa) === null ? 'Sin dato' : `${porcentajeConfianza(s.confianzaIa)}%`}
-                    </span>
-                  </div>
-                </div>
+                      <td className="px-5 py-4">
+                        <p className="font-semibold text-gray-900">{s.productorNombre ?? 'Productor sin perfil'}</p>
+                        <p className="text-xs text-gray-500">{s.finca}</p>
+                      </td>
 
-                {/* Acciones */}
-                <div className="flex shrink-0 items-center gap-2">
-                  {/* RF-08.6 — canal de coordinación */}
-                  <button
-                    type="button"
-                    title="Abrir comunicación"
-                    onClick={() => setChat(s)}
-                    className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 transition hover:border-agro-green hover:text-agro-green"
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-4 w-4">
-                      <path d="M21 12a8 8 0 0 1-11.5 7.2L4 20l.9-5A8 8 0 1 1 21 12Z" strokeLinejoin="round" />
-                    </svg>
-                  </button>
+                      {/* Dónde se tomó la captura: con GPS, al hacer clic abre el mapa de casos en ese punto */}
+                      <td className="px-5 py-4 text-gray-600">
+                        {s.tieneUbicacion ? (
+                          <Link
+                            to={`/mapa?caso=${s.id}`}
+                            title="Ver este caso en el mapa"
+                            className="group -mx-2 -my-1 block rounded-lg px-2 py-1 transition hover:bg-[#e8f7ee]"
+                          >
+                            <p>{s.vereda}</p>
+                            <p className="text-xs text-gray-400">{s.municipio}</p>
+                            <span className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-agro-green group-hover:underline">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-3.5 w-3.5">
+                                <path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11Z" strokeLinejoin="round" />
+                                <circle cx="12" cy="10" r="2.5" />
+                              </svg>
+                              Ver en el mapa
+                            </span>
+                          </Link>
+                        ) : (
+                          <>
+                            <p>{s.vereda}</p>
+                            <p className="text-xs text-gray-400">{s.municipio}</p>
+                            <span className="mt-1 block text-xs text-gray-300">Sin GPS</span>
+                          </>
+                        )}
+                      </td>
 
-                  {(s.estado === 'Resuelta' || s.estado === 'Descartada') && (
-                    <button
-                      type="button"
-                      onClick={() => setVerResolucion(s)}
-                      className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 transition hover:border-agro-green hover:text-agro-green"
-                    >
-                      {s.estado === 'Resuelta' ? 'Ver resolución' : 'Ver descarte'}
-                    </button>
-                  )}
+                      {/* Modelo de IA que analizó y su confianza */}
+                      <td className="px-5 py-4">
+                        <p className="inline-flex items-center gap-1.5 text-gray-700">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-3.5 w-3.5 text-gray-400">
+                            <rect x="7" y="7" width="10" height="10" rx="2" />
+                            <path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3" strokeLinecap="round" />
+                          </svg>
+                          {versionModeloCorta(s.modeloVersionId)}
+                        </p>
+                        <div className="mt-2 flex items-center gap-2">
+                          <div className="h-1.5 w-20 overflow-hidden rounded-full bg-gray-100">
+                            <div className="h-full rounded-full bg-agro-green" style={{ width: `${confianza ?? 0}%` }} />
+                          </div>
+                          <span className="text-xs font-medium text-gray-600">
+                            {confianza === null ? 'Sin dato' : `${confianza}%`}
+                          </span>
+                        </div>
+                      </td>
 
-                  {puedeAsignarse(s.estado) && (
-                    <button
-                      type="button"
-                      onClick={() => setAsignando(s)}
-                      className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-                        s.agronomoId
-                          ? 'border border-gray-200 text-gray-700 hover:border-agro-green hover:text-agro-green'
-                          : 'bg-agro-green text-white hover:bg-[#194b32]'
-                      }`}
-                    >
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
-                        <circle cx="9" cy="8" r="3.2" />
-                        <path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5" strokeLinecap="round" />
-                        <path d="M17 8.5l1.8 1.8 3.2-3.3" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                      {s.agronomoId ? 'Reasignar' : 'Asignar'}
-                    </button>
-                  )}
-                </div>
-              </article>
-            )
-          })
-        )}
+                      {/* Agrónomo vinculado */}
+                      <td className="px-5 py-4">
+                        {s.agronomoId ? (
+                          <div className="flex items-center gap-2">
+                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-agro-green text-[10px] font-semibold text-white">
+                              {nombreAgronomo ? iniciales(nombreAgronomo) : 'AG'}
+                            </span>
+                            <span className="font-medium text-gray-800">{nombreAgronomo ?? 'Agrónomo no activo'}</span>
+                          </div>
+                        ) : (
+                          <span className="rounded-md bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600">
+                            Sin asignar
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Acciones */}
+                      <td className="px-5 py-4">
+                        <div className="flex items-center justify-end gap-2">
+                          {/* RF-08.6 — canal de coordinación */}
+                          <button
+                            type="button"
+                            title="Abrir comunicación"
+                            onClick={() => setChat(s)}
+                            className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 transition hover:border-agro-green hover:text-agro-green"
+                          >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-4 w-4">
+                              <path d="M21 12a8 8 0 0 1-11.5 7.2L4 20l.9-5A8 8 0 1 1 21 12Z" strokeLinejoin="round" />
+                            </svg>
+                          </button>
+
+                          {(s.estado === 'Resuelta' || s.estado === 'Descartada') && (
+                            <button
+                              type="button"
+                              onClick={() => setVerResolucion(s)}
+                              className="whitespace-nowrap rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 transition hover:border-agro-green hover:text-agro-green"
+                            >
+                              {s.estado === 'Resuelta' ? 'Ver resolución' : 'Ver descarte'}
+                            </button>
+                          )}
+
+                          {puedeAsignarse(s.estado) && (
+                            <button
+                              type="button"
+                              onClick={() => setAsignando(s)}
+                              className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                                s.agronomoId
+                                  ? 'border border-gray-200 text-gray-700 hover:border-agro-green hover:text-agro-green'
+                                  : 'bg-agro-green text-white hover:bg-[#194b32]'
+                              }`}
+                            >
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
+                                <circle cx="9" cy="8" r="3.2" />
+                                <path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5" strokeLinecap="round" />
+                                <path d="M17 8.5l1.8 1.8 3.2-3.3" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                              {s.agronomoId ? 'Reasignar' : 'Asignar'}
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {consulta.data && consulta.data.total > 0 && (

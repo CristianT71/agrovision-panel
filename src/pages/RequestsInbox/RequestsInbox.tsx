@@ -7,6 +7,7 @@ import {
   codigoSolicitud,
   porcentajeConfianza,
   solicitudesService,
+  versionModeloCorta,
   type EstadoSolicitud,
   type FiltrosSolicitudes,
 } from '../../api/solicitudes/solicitudes.service'
@@ -128,83 +129,132 @@ export default function RequestsInbox() {
         ))}
       </div>
 
-      {/* Listado — RF-03.6 */}
-      <div className="mt-5 space-y-3">
-        {consulta.isPending ? (
-          <p className="rounded-xl bg-white px-5 py-10 text-center text-sm text-gray-400">
-            Cargando solicitudes...
-          </p>
-        ) : consulta.isError ? (
-          <div className="rounded-xl bg-red-50 px-5 py-10 text-center text-sm text-red-600">
-            <p>{mensajeDeError(consulta.error, 'No se pudieron cargar las solicitudes.')}</p>
-            <button
-              type="button"
-              onClick={() => consulta.refetch()}
-              className="mt-3 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 transition hover:border-red-300"
-            >
-              Reintentar
-            </button>
-          </div>
-        ) : sinAsignadas ? (
-          <div className="rounded-xl bg-white px-5 py-10 text-center">
-            <p className="text-sm font-medium text-gray-600">No tienes solicitudes asignadas.</p>
-            <p className="mt-1 text-sm text-gray-400">
-              Aparecerán aquí cuando el administrador te asigne una.
-            </p>
-          </div>
-        ) : visibles.length === 0 ? (
-          <p className="rounded-xl bg-white px-5 py-10 text-center text-sm text-gray-400">
-            No hay solicitudes que coincidan con el filtro.
-          </p>
-        ) : (
-          visibles.map((s) => (
-            <article
-              key={s.id}
-              className="group flex items-center gap-4 rounded-xl bg-white p-4 transition hover:shadow-sm"
-            >
-              {/* RF-03.6 — imagen de evidencia */}
-              <MiniaturaSolicitud solicitudId={s.id} />
+      {/* Listado en tabla — RF-03.6 */}
+      <div className="mt-5 overflow-hidden rounded-2xl bg-white">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[950px] text-sm">
+            <thead>
+              <tr className="border-b border-gray-100 text-left text-xs uppercase tracking-wider text-gray-400">
+                <th className="px-5 py-4 font-medium">Caso</th>
+                <th className="px-5 py-4 font-medium">Productor / Finca</th>
+                <th className="px-5 py-4 font-medium">Ubicación</th>
+                <th className="px-5 py-4 font-medium">Modelo IA</th>
+                <th className="px-5 py-4 text-right font-medium">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {consulta.isPending ? (
+                <tr>
+                  <td colSpan={5} className="px-5 py-12 text-center text-sm text-gray-400">
+                    Cargando solicitudes...
+                  </td>
+                </tr>
+              ) : consulta.isError ? (
+                <tr>
+                  <td colSpan={5} className="px-5 py-12 text-center text-sm text-red-600">
+                    <p>{mensajeDeError(consulta.error, 'No se pudieron cargar las solicitudes.')}</p>
+                    <button
+                      type="button"
+                      onClick={() => consulta.refetch()}
+                      className="mt-3 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 transition hover:border-red-300"
+                    >
+                      Reintentar
+                    </button>
+                  </td>
+                </tr>
+              ) : sinAsignadas ? (
+                <tr>
+                  <td colSpan={5} className="px-5 py-12 text-center">
+                    <p className="text-sm font-medium text-gray-600">No tienes solicitudes asignadas.</p>
+                    <p className="mt-1 text-sm text-gray-400">
+                      Aparecerán aquí cuando el administrador te asigne una.
+                    </p>
+                  </td>
+                </tr>
+              ) : visibles.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-5 py-12 text-center text-sm text-gray-400">
+                    No hay solicitudes que coincidan con el filtro.
+                  </td>
+                </tr>
+              ) : (
+                visibles.map((s) => {
+                  const confianza = porcentajeConfianza(s.confianzaIa)
+                  return (
+                    <tr key={s.id} className="border-b border-gray-50 last:border-0 hover:bg-[#fafbfa]">
+                      {/* RF-03.6 — imagen de evidencia */}
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <MiniaturaSolicitud solicitudId={s.id} />
+                          <div className="min-w-0 space-y-1">
+                            <p className="font-mono text-xs text-gray-400">{codigoSolicitud(s.id)}</p>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <StatusBadge estado={s.estado} />
+                              {s.plagaIdentificada && <PlagaBadge plaga={s.plagaIdentificada} />}
+                            </div>
+                            <p className="text-xs text-gray-400">{haceCuanto(s.fecha)}</p>
+                          </div>
+                        </div>
+                      </td>
 
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-mono text-xs text-gray-400">{codigoSolicitud(s.id)}</span>
-                  <StatusBadge estado={s.estado} />
-                  {s.plagaIdentificada && <PlagaBadge plaga={s.plagaIdentificada} />}
-                </div>
+                      <td className="px-5 py-4">
+                        <p className="font-semibold text-gray-900">{s.productorNombre ?? 'Productor sin perfil'}</p>
+                        <p className="text-xs text-gray-500">{s.finca}</p>
+                      </td>
 
-                <p className="mt-1 font-semibold text-gray-900">{s.productorNombre ?? 'Productor sin perfil'}</p>
-                <p className="text-sm text-gray-500">
-                  {s.finca} · {s.vereda} · {s.municipio}
-                </p>
+                      <td className="px-5 py-4 text-gray-600">
+                        <p>{s.vereda}</p>
+                        <p className="text-xs text-gray-400">{s.municipio}</p>
+                        {s.tieneUbicacion ? (
+                          <span className="mt-1 inline-flex items-center gap-1 text-xs text-agro-green">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-3.5 w-3.5">
+                              <path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11Z" strokeLinejoin="round" />
+                              <circle cx="12" cy="10" r="2.5" />
+                            </svg>
+                            Con GPS
+                          </span>
+                        ) : (
+                          <span className="mt-1 block text-xs text-gray-300">Sin GPS</span>
+                        )}
+                      </td>
 
-                {/* Puntaje de inferencia IA */}
-                <div className="mt-2 flex items-center gap-2">
-                  <span className="text-xs text-gray-400">Confianza IA</span>
-                  <div className="h-1.5 w-24 overflow-hidden rounded-full bg-gray-100">
-                    <div
-                      className="h-full rounded-full bg-agro-green"
-                      style={{ width: `${porcentajeConfianza(s.confianzaIa) ?? 0}%` }}
-                    />
-                  </div>
-                  <span className="text-xs font-medium text-gray-600">
-                    {porcentajeConfianza(s.confianzaIa) === null ? 'Sin dato' : `${porcentajeConfianza(s.confianzaIa)}%`}
-                  </span>
-                </div>
-              </div>
+                      {/* Puntaje de inferencia IA */}
+                      <td className="px-5 py-4">
+                        <p className="inline-flex items-center gap-1.5 text-gray-700">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-3.5 w-3.5 text-gray-400">
+                            <rect x="7" y="7" width="10" height="10" rx="2" />
+                            <path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3" strokeLinecap="round" />
+                          </svg>
+                          {versionModeloCorta(s.modeloVersionId)}
+                        </p>
+                        <div className="mt-2 flex items-center gap-2">
+                          <div className="h-1.5 w-20 overflow-hidden rounded-full bg-gray-100">
+                            <div className="h-full rounded-full bg-agro-green" style={{ width: `${confianza ?? 0}%` }} />
+                          </div>
+                          <span className="text-xs font-medium text-gray-600">
+                            {confianza === null ? 'Sin dato' : `${confianza}%`}
+                          </span>
+                        </div>
+                      </td>
 
-              <div className="flex shrink-0 items-center gap-3">
-                <span className="text-xs text-gray-400">{haceCuanto(s.fecha)}</span>
-                <button
-                  type="button"
-                  onClick={() => navigate(`/solicitudes/${s.id}`)}
-                  className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-700 transition hover:border-agro-green hover:text-agro-green"
-                >
-                  Ver detalle
-                </button>
-              </div>
-            </article>
-          ))
-        )}
+                      <td className="px-5 py-4">
+                        <div className="flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/solicitudes/${s.id}`)}
+                            className="whitespace-nowrap rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-700 transition hover:border-agro-green hover:text-agro-green"
+                          >
+                            Ver detalle
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {consulta.data && consulta.data.total > 0 && (
