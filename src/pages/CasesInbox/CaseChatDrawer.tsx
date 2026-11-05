@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { codigoSolicitud, type Solicitud } from '../../api/solicitudes/solicitudes.service'
 import TarjetaUbicacion from '../../components/MapaUbicacion/TarjetaUbicacion'
+import AutorizacionDatos from '../../components/AutorizacionDatos'
 import CanalCoordinacion from '../RequestDetail/CanalCoordinacion'
 import PermisoContacto from './PermisoContacto'
 
@@ -54,6 +55,9 @@ export default function CaseChatDrawer({ solicitud, nombreAgronomo, onClose }: P
           {/* Dónde se tomó la foto: la API decide si el administrador puede verla */}
           <div className="border-b border-gray-100 p-3">
             <TarjetaUbicacion solicitudId={solicitud.id} tieneUbicacion={solicitud.tieneUbicacion} />
+          </div>
+          <div className="border-b border-gray-100 p-3">
+            <AutorizacionDatos solicitudId={solicitud.id} />
           </div>
           <CanalCoordinacion
             solicitudId={solicitud.id}

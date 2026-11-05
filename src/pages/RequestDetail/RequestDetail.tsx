@@ -21,6 +21,7 @@ import { mensajeDeError } from '../../api/axios'
 import { StatusBadge } from '../../components/StatusBadge/StatusBadge'
 import Button from '../../components/Button/Button'
 import { formatearFechaHora } from '../../utils/fechas'
+import AutorizacionDatos from '../../components/AutorizacionDatos'
 import { tamanoLegible } from '../../utils/archivos'
 import FotoSolicitud, { Marcador } from '../../components/FotoSolicitud/FotoSolicitud'
 import TarjetaUbicacion from '../../components/MapaUbicacion/TarjetaUbicacion'
@@ -208,6 +209,8 @@ export default function RequestDetail() {
 
           {/* Ubicación de la captura: la API decide si este agrónomo puede verla */}
           <TarjetaUbicacion solicitudId={s.id} tieneUbicacion={s.tieneUbicacion} />
+
+          <AutorizacionDatos solicitudId={s.id} />
 
           {/* RF-04.4 — resultado de la IA */}
           <section className="rounded-2xl bg-white p-6">

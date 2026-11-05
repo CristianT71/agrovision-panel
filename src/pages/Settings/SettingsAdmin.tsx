@@ -1,22 +1,19 @@
-import { useState } from 'react'
+import type { AjustesPersonalesAdmin } from '../../api/ajustes/ajustes.service'
+import { useAjustesPersonales, useAjustesSistema } from './useAjustes'
 import Toggle from '../../components/Toggle/Toggle'
 import CorreoNotificaciones from './CorreoNotificaciones'
 import PoliticaDatosTarjeta from './PoliticaDatosTarjeta'
 import {
-  AJUSTES_ADMIN,
-  CANALES_DESPLIEGUE,
   CARGAS_MAXIMAS,
   EXPIRACIONES,
   IDIOMAS,
-  RETENCIONES,
   RETENCION_AUDITORIA,
   SISTEMA,
   UMBRALES_PLAGA,
   ZONAS_HORARIAS,
-  type AjustesAdmin,
-} from './mockAjustes'
+} from './opcionesAjustes'
 import {
-  AvisoPendiente,
+  EstadoAjustes,
   Fila,
   InfoSistema,
   LogAuditoria,
@@ -26,11 +23,28 @@ import {
 } from './SettingsUI'
 
 export default function SettingsAdmin() {
-  const [a, setA] = useState<AjustesAdmin>(AJUSTES_ADMIN)
+  const personales = useAjustesPersonales<AjustesPersonalesAdmin>()
+  const sistema = useAjustesSistema()
+  const p = personales.datos
+  const sis = sistema.datos
 
-  // Vista previa: no se guarda en el servidor hasta que exista PATCH /ajustes/admin
-  const cambiar = <C extends keyof AjustesAdmin>(clave: C, valor: AjustesAdmin[C]) => {
-    setA((prev) => ({ ...prev, [clave]: valor }))
+  // Hasta que lleguen los ajustes (o si fallan) solo se muestra el estado, sin controles con valores inventados
+  if (!p || !sis) {
+    return (
+      <div className="mx-auto max-w-3xl">
+        <h1 className="text-2xl font-bold text-gray-900">Ajustes del sistema</h1>
+        <p className="mt-1 text-sm text-gray-500">Configuración global de la plataforma AgroVisión</p>
+        <EstadoAjustes
+          cargando={personales.cargando || sistema.cargando}
+          errorCarga={personales.errorCarga ?? sistema.errorCarga}
+          errorGuardado={personales.errorGuardado ?? sistema.errorGuardado}
+          onReintentar={() => {
+            personales.reintentar()
+            sistema.reintentar()
+          }}
+        />
+      </div>
+    )
   }
 
   return (
@@ -39,7 +53,15 @@ export default function SettingsAdmin() {
       <h1 className="text-2xl font-bold text-gray-900">Ajustes del sistema</h1>
       <p className="mt-1 text-sm text-gray-500">Configuración global de la plataforma AgroVisión</p>
 
-      <AvisoPendiente />
+      <EstadoAjustes
+        cargando={personales.cargando || sistema.cargando}
+        errorCarga={personales.errorCarga ?? sistema.errorCarga}
+        errorGuardado={personales.errorGuardado ?? sistema.errorGuardado}
+        onReintentar={() => {
+          personales.reintentar()
+          sistema.reintentar()
+        }}
+      />
 
       {/* ---------- Idioma y región ---------- */}
       <Tarjeta
@@ -48,15 +70,15 @@ export default function SettingsAdmin() {
       >
         <Subgrupo icono="globo" titulo="Localización" />
         <Fila etiqueta="Idioma de la interfaz">
-          <Selector valor={a.idioma} opciones={IDIOMAS} onChange={(v) => cambiar('idioma', v)} />
+          <Selector valor={p.idioma} opciones={IDIOMAS} onChange={(v) => personales.cambiar('idioma', v)} />
         </Fila>
 
         <Subgrupo icono="reloj" titulo="Zona horaria" />
-        <Fila etiqueta="Zona horaria del servidor">
+        <Fila etiqueta="Zona horaria">
           <Selector
-            valor={a.zonaHoraria}
+            valor={p.zonaHoraria}
             opciones={ZONAS_HORARIAS}
-            onChange={(v) => cambiar('zonaHoraria', v)}
+            onChange={(v) => personales.cambiar('zonaHoraria', v)}
           />
         </Fila>
       </Tarjeta>
@@ -70,11 +92,11 @@ export default function SettingsAdmin() {
 
         <Fila
           etiqueta="Asignación automática"
-          nota="Reparte los casos nuevos al agrónomo con menor carga"
+          nota="Asigna cada solicitud enviada al agrónomo activo con menor carga; no cambia las que ya están sin asignar"
         >
           <Toggle
-            activo={a.asignacionAutomatica}
-            onChange={(v) => cambiar('asignacionAutomatica', v)}
+            activo={sis.asignacionAutomatica}
+            onChange={(v) => sistema.cambiar('asignacionAutomatica', v)}
             etiqueta="Asignación automática"
           />
         </Fila>
@@ -82,12 +104,12 @@ export default function SettingsAdmin() {
         {/* RF-08.4 — carga en curso de cada especialista */}
         <Fila
           etiqueta="Carga máxima por agrónomo"
-          nota="Advierte al asignar si el especialista supera este número"
+          nota="Pide confirmar al asignar a mano; la asignación automática no lo supera"
         >
           <Selector
-            valor={a.cargaMaximaAgronomo}
+            valor={sis.cargaMaximaAgronomo}
             opciones={CARGAS_MAXIMAS}
-            onChange={(v) => cambiar('cargaMaximaAgronomo', v)}
+            onChange={(v) => sistema.cambiar('cargaMaximaAgronomo', v)}
           />
         </Fila>
 
@@ -97,9 +119,9 @@ export default function SettingsAdmin() {
           nota="Detona la alerta de reentrenamiento al superarse"
         >
           <Selector
-            valor={a.umbralPlagaNueva}
+            valor={sis.umbralPlagaNueva}
             opciones={UMBRALES_PLAGA}
-            onChange={(v) => cambiar('umbralPlagaNueva', v)}
+            onChange={(v) => sistema.cambiar('umbralPlagaNueva', v)}
           />
         </Fila>
       </Tarjeta>
@@ -111,28 +133,12 @@ export default function SettingsAdmin() {
       >
         <Subgrupo icono="chip" titulo="Despliegue" />
 
-        {/* RF-09.5 — pipeline de liberación */}
-        <Fila
-          etiqueta="Canal por defecto al publicar"
-          nota="Canal preseleccionado en el formulario de nueva versión"
-        >
-          <Selector
-            valor={a.canalPorDefecto}
-            opciones={CANALES_DESPLIEGUE}
-            onChange={(v) => cambiar('canalPorDefecto', v)}
-          />
-        </Fila>
-
         {/* RF-09.3 — justificación documental del kill-switch */}
         <Fila
           etiqueta="Exigir justificación en kill-switch"
           nota="Bloquea la desactivación si no se documenta el motivo"
         >
-          <Toggle
-            activo={a.requiereJustificacionKillSwitch}
-            onChange={(v) => cambiar('requiereJustificacionKillSwitch', v)}
-            etiqueta="Exigir justificación en kill-switch"
-          />
+          <span className="text-sm text-gray-500">Siempre activo</span>
         </Fila>
 
         {/* RNF-01.3 — purga de GPS y EXIF */}
@@ -140,11 +146,9 @@ export default function SettingsAdmin() {
           etiqueta="Anonimizar exportaciones"
           nota="Elimina GPS y metadatos EXIF al empaquetar datasets"
         >
-          <Toggle
-            activo={a.anonimizarExportaciones}
-            onChange={(v) => cambiar('anonimizarExportaciones', v)}
-            etiqueta="Anonimizar exportaciones"
-          />
+          <span className="rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">
+            Próximamente
+          </span>
         </Fila>
       </Tarjeta>
 
@@ -156,8 +160,8 @@ export default function SettingsAdmin() {
         <Subgrupo icono="campana" titulo="Canales" />
         <Fila etiqueta="Notificaciones push (navegador)">
           <Toggle
-            activo={a.pushNavegador}
-            onChange={(v) => cambiar('pushNavegador', v)}
+            activo={p.pushNavegador}
+            onChange={(v) => personales.cambiar('pushNavegador', v)}
             etiqueta="Notificaciones push"
           />
         </Fila>
@@ -168,24 +172,24 @@ export default function SettingsAdmin() {
         {/* RF-08.2 — casos en orfandad */}
         <Fila etiqueta="Casos sin asignar" nota="Al quedar una solicitud sin agrónomo vinculado">
           <Toggle
-            activo={a.casosSinAsignar}
-            onChange={(v) => cambiar('casosSinAsignar', v)}
+            activo={p.casosSinAsignar}
+            onChange={(v) => personales.cambiar('casosSinAsignar', v)}
             etiqueta="Casos sin asignar"
           />
         </Fila>
 
         <Fila etiqueta="Alerta de plaga nueva" nota="Al superarse el umbral configurado arriba">
           <Toggle
-            activo={a.alertaPlagaNueva}
-            onChange={(v) => cambiar('alertaPlagaNueva', v)}
+            activo={p.alertaPlagaNueva}
+            onChange={(v) => personales.cambiar('alertaPlagaNueva', v)}
             etiqueta="Alerta de plaga nueva"
           />
         </Fila>
 
         <Fila etiqueta="Despliegues de modelo" nota="Al publicarse o desactivarse una versión">
           <Toggle
-            activo={a.despliegues}
-            onChange={(v) => cambiar('despliegues', v)}
+            activo={p.despliegues}
+            onChange={(v) => personales.cambiar('despliegues', v)}
             etiqueta="Despliegues de modelo"
           />
         </Fila>
@@ -196,8 +200,8 @@ export default function SettingsAdmin() {
           nota="Al fallar la actualización en dispositivos"
         >
           <Toggle
-            activo={a.fallosOTA}
-            onChange={(v) => cambiar('fallosOTA', v)}
+            activo={p.fallosOTA}
+            onChange={(v) => personales.cambiar('fallosOTA', v)}
             etiqueta="Fallos de sincronización OTA"
           />
         </Fila>
@@ -213,12 +217,12 @@ export default function SettingsAdmin() {
         {/* RNF-02.2 — cierre por inactividad */}
         <Fila
           etiqueta="Cierre de sesión por inactividad"
-          nota="Invalida el token JWT tras este tiempo sin actividad"
+          nota="Cierra la sesión de administradores y agrónomos tras este tiempo sin actividad; se aplica en menos de un minuto"
         >
           <Selector
-            valor={a.expiracionSesion}
+            valor={sis.expiracionSesion}
             opciones={EXPIRACIONES}
-            onChange={(v) => cambiar('expiracionSesion', v)}
+            onChange={(v) => sistema.cambiar('expiracionSesion', v)}
           />
         </Fila>
 
@@ -234,12 +238,13 @@ export default function SettingsAdmin() {
         descripcion="Por cuánto tiempo se almacenan las solicitudes y logs de actividad"
       >
         <Subgrupo icono="base" titulo="Políticas de almacenamiento" />
-        <Fila etiqueta="Retención de solicitudes">
-          <Selector
-            valor={a.retencionSolicitudes}
-            opciones={RETENCIONES}
-            onChange={(v) => cambiar('retencionSolicitudes', v)}
-          />
+        <Fila
+          etiqueta="Retención de solicitudes"
+          nota="Por ahora las solicitudes se conservan sin borrarse automáticamente"
+        >
+          <span className="rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">
+            Próximamente
+          </span>
         </Fila>
         {/* RNF-01.2 — retención mínima de 2 años, no editable */}
         <Fila etiqueta="Retención de logs de auditoría">

@@ -8,6 +8,8 @@ import {
   type Solicitud,
 } from '../../api/solicitudes/solicitudes.service'
 import { agronomosService, clavesAgronomos } from '../../api/agronomos/agronomos.service'
+import { ajustesService, clavesAjustes } from '../../api/ajustes/ajustes.service'
+import { cargaMaximaComoNumero } from '../Settings/opcionesAjustes'
 import {
   MAX_ADJUNTOS_MENSAJE,
   TIPOS_ADJUNTO_MENSAJE,
@@ -39,10 +41,15 @@ export default function AssignModal({ solicitud, onClose, onAsignada }: Props) {
     queryFn: () => agronomosService.listar({ estado: 'activo' }),
   })
 
+  // RF-08.4 — carga máxima por agrónomo (Ajustes > Operación de casos); si no carga, no se advierte
+  const ajustes = useQuery({ queryKey: clavesAjustes.sistema, queryFn: ajustesService.obtenerSistema })
+  const cargaMaxima = ajustes.data ? cargaMaximaComoNumero(ajustes.data.cargaMaximaAgronomo) : null
+  const superaMaximo = (casosActivos: number) => cargaMaxima !== null && casosActivos + 1 > cargaMaxima
+
   // RF-08.3 / RF-08.5 — primero se asigna; solo si funciona se envían las instrucciones
   const confirmar = useMutation({
-    mutationFn: async (agronomoId: string) => {
-      await solicitudesService.asignar(solicitud.id, agronomoId)
+    mutationFn: async ({ agronomoId, sobrecarga }: { agronomoId: string; sobrecarga: boolean }) => {
+      await solicitudesService.asignar(solicitud.id, agronomoId, sobrecarga)
 
       if (mensaje.trim() === '' && archivos.length === 0) return null
       try {
@@ -59,9 +66,10 @@ export default function AssignModal({ solicitud, onClose, onAsignada }: Props) {
       onAsignada(aviso)
     },
     onError: (error) => {
-      // Otra persona la asignó al mismo tiempo: se recarga para mostrar el estado real
+      // Otra persona la asignó al mismo tiempo o cambió la carga: se recarga para mostrar el estado real
       if (axios.isAxiosError(error) && error.response?.status === 409) {
         queryClient.invalidateQueries({ queryKey: clavesSolicitudes.todas })
+        queryClient.invalidateQueries({ queryKey: clavesAgronomos.todos })
       }
     },
   })
@@ -95,7 +103,9 @@ export default function AssignModal({ solicitud, onClose, onAsignada }: Props) {
     setArchivos((prev) => [...prev, ...nuevos])
   }
 
-  const accion = actual ? 'Reasignar' : 'Asignar'
+  const elegido = agronomos.data?.find((a) => a.id === seleccionado)
+  const sobrecarga = elegido ? superaMaximo(elegido.casosActivos) : false
+  const accion = sobrecarga ? 'Asignar de todos modos' : actual ? 'Reasignar' : 'Asignar'
 
   return (
     <div className="overlay-modal fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -171,12 +181,15 @@ export default function AssignModal({ solicitud, onClose, onAsignada }: Props) {
                     ) : (
                       <span
                         className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-medium ${
-                          a.casosActivos === 0
-                            ? 'bg-gray-100 text-gray-500'
-                            : 'bg-[#e8f3ec] text-agro-green'
+                          cargaMaxima !== null && a.casosActivos >= cargaMaxima
+                            ? 'bg-amber-50 text-amber-700'
+                            : a.casosActivos === 0
+                              ? 'bg-gray-100 text-gray-500'
+                              : 'bg-[#e8f3ec] text-agro-green'
                         }`}
                       >
                         {a.casosActivos} {a.casosActivos === 1 ? 'caso' : 'casos'}
+                        {cargaMaxima !== null && a.casosActivos >= cargaMaxima && ' · al límite'}
                       </span>
                     )}
                   </button>
@@ -255,6 +268,12 @@ export default function AssignModal({ solicitud, onClose, onAsignada }: Props) {
             </div>
           </div>
 
+          {sobrecarga && elegido && (
+            <p role="status" className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              {elegido.nombre} ya tiene {elegido.casosActivos} {elegido.casosActivos === 1 ? 'caso' : 'casos'} en
+              curso y el máximo configurado es {cargaMaxima}. Puedes asignarlo de todos modos.
+            </p>
+          )}
           {errorArchivos && <p className="mt-2 text-xs text-amber-600">{errorArchivos}</p>}
           {confirmar.isError && (
             <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
@@ -275,7 +294,7 @@ export default function AssignModal({ solicitud, onClose, onAsignada }: Props) {
           <button
             type="button"
             disabled={!seleccionado || ocupado}
-            onClick={() => seleccionado && confirmar.mutate(seleccionado)}
+            onClick={() => seleccionado && confirmar.mutate({ agronomoId: seleccionado, sobrecarga })}
             className="flex items-center justify-center gap-2 rounded-lg bg-agro-green py-2.5 text-sm font-medium text-white transition enabled:hover:bg-[#194b32] disabled:bg-[#9dc7ae]"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">

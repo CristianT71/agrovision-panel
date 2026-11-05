@@ -30,6 +30,8 @@ export interface Solicitud {
   modeloVersionId: string | null
   // Solo viene en el detalle: versión legible del modelo que usa el celular (p. ej. 1.3.2)
   modeloVersion?: string | null
+  // Solo en el detalle: autorización de datos personales (Ley 1581) del productor; null si no la tiene
+  autorizacionDatos?: { version: string; fecha: string | null } | null
   respuestaProfesional: string | null
   tipoResultado: TipoResultado | null
   plagaIdentificada: string | null
@@ -197,9 +199,13 @@ export const solicitudesService = {
   descargarFoto: (id: string, fotoId: string) =>
     api.get<Blob>(`/solicitudes/${id}/fotos/${fotoId}`, { responseType: 'blob' }).then((r) => r.data),
   // RF-08.3 — solo administrador. La API notifica al agrónomo y responde 409 si otra persona asignó a la vez.
-  asignar: (id: string, agronomoId: string) =>
+  // confirmarSobrecarga: el administrador acepta pasar de la carga máxima configurada en Ajustes (RF-08.4)
+  asignar: (id: string, agronomoId: string, confirmarSobrecarga = false) =>
     api
-      .patch<{ message: string; solicitud: Solicitud }>(`/solicitudes/${id}/asignar`, { agronomoId })
+      .patch<{ message: string; solicitud: Solicitud }>(`/solicitudes/${id}/asignar`, {
+        agronomoId,
+        ...(confirmarSobrecarga && { confirmarSobrecarga }),
+      })
       .then((r) => r.data),
 }
 

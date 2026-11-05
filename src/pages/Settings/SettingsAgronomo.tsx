@@ -1,15 +1,14 @@
-import { useState } from 'react'
+import type { AjustesPersonalesAgronomo } from '../../api/ajustes/ajustes.service'
+import { useAjustesPersonales } from './useAjustes'
 import Toggle from '../../components/Toggle/Toggle'
 import CorreoNotificaciones from './CorreoNotificaciones'
 import {
-  AJUSTES,
   IDIOMAS,
   SISTEMA,
   ZONAS_HORARIAS,
-  type Ajustes,
-} from './mockAjustes'
+} from './opcionesAjustes'
 import {
-  AvisoPendiente,
+  EstadoAjustes,
   Fila,
   InfoSistema,
   Selector,
@@ -18,11 +17,23 @@ import {
 } from './SettingsUI'
 
 export default function SettingsAgronomo() {
-  const [ajustes, setAjustes] = useState<Ajustes>(AJUSTES)
+  const { datos: ajustes, cargando, errorCarga, errorGuardado, cambiar, reintentar } =
+    useAjustesPersonales<AjustesPersonalesAgronomo>()
 
-  // Vista previa: no se guarda en el servidor hasta que exista PATCH /ajustes
-  const cambiar = <C extends keyof Ajustes>(clave: C, valor: Ajustes[C]) => {
-    setAjustes((prev) => ({ ...prev, [clave]: valor }))
+  // Hasta que lleguen los ajustes (o si fallan) solo se muestra el estado, sin controles con valores inventados
+  if (!ajustes) {
+    return (
+      <div className="mx-auto max-w-3xl">
+        <h1 className="text-2xl font-bold text-gray-900">Ajustes</h1>
+        <p className="mt-1 text-sm text-gray-500">Preferencias de tu cuenta en AgroVisión</p>
+        <EstadoAjustes
+          cargando={cargando}
+          errorCarga={errorCarga}
+          errorGuardado={errorGuardado}
+          onReintentar={reintentar}
+        />
+      </div>
+    )
   }
 
   return (
@@ -31,7 +42,12 @@ export default function SettingsAgronomo() {
       <h1 className="text-2xl font-bold text-gray-900">Ajustes</h1>
       <p className="mt-1 text-sm text-gray-500">Preferencias de tu cuenta en AgroVisión</p>
 
-      <AvisoPendiente />
+      <EstadoAjustes
+        cargando={cargando}
+        errorCarga={errorCarga}
+        errorGuardado={errorGuardado}
+        onReintentar={reintentar}
+      />
 
       {/* ---------- Idioma y región ---------- */}
       <Tarjeta
