@@ -304,9 +304,9 @@ export default function CasesMap() {
 }
 
 const COLOR_LEYENDA: Record<EstadoSolicitud, string> = {
-  Pendiente: 'bg-gray-500',
-  Enviada: 'bg-blue-700',
-  Asignada: 'bg-amber-700',
+  Pendiente: 'bg-orange-500',
+  Enviada: 'bg-yellow-400',
+  Asignada: 'bg-blue-600',
   Resuelta: 'bg-green-700',
   Descartada: 'bg-red-600',
 }

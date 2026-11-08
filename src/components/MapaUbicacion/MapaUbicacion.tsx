@@ -19,14 +19,14 @@ import { AccionesDeteccion } from './AccionesDeteccion'
 import { AccionesUbicacion, ResumenCoordenadas } from './AccionesUbicacion'
 import { CAPA_CALLES, CAPA_SATELITE, CENTRO_POR_DEFECTO, COLOR_CATEGORIA_MAPA, UMBRAL_CLUSTER } from './config'
 
-// Mismos tonos que las insignias de StatusBadge (gris, azul, ámbar, verde, rojo)
+// Mismo semáforo que las insignias de StatusBadge (naranja, amarillo, azul, verde, rojo)
 // Una precisión absurda del GPS (p. ej. 10 000 km) no debe tapar el mapa con un círculo gigante
 const RADIO_MAXIMO_PRECISION_M = 5000
 
 const COLOR_ESTADO: Record<EstadoSolicitud, string> = {
-  Pendiente: '#6b7280',
-  Enviada: '#1d4ed8',
-  Asignada: '#b45309',
+  Pendiente: '#f97316',
+  Enviada: '#eab308',
+  Asignada: '#2563eb',
   Resuelta: '#15803d',
   Descartada: '#dc2626',
 }

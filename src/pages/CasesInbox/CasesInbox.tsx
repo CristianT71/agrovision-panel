@@ -16,7 +16,7 @@ import {
 } from '../../api/solicitudes/solicitudes.service'
 import { agronomosService, clavesAgronomos } from '../../api/agronomos/agronomos.service'
 import { mensajeDeError } from '../../api/axios'
-import { StatusBadge, PlagaBadge } from '../../components/StatusBadge/StatusBadge'
+import { StatusBadge, PlagaBadge, COLOR_PUNTO } from '../../components/StatusBadge/StatusBadge'
 import { haceCuanto } from '../../utils/fechas'
 import { useValorRetrasado } from '../../utils/useValorRetrasado'
 import { usePaginaDeFiltros } from '../../utils/usePaginaDeFiltros'
@@ -171,6 +171,7 @@ export default function CasesInbox() {
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
+            {f !== 'Todas' && <span className={`h-2 w-2 rounded-full ${COLOR_PUNTO[f]}`} />}
             {f}
             <span className="rounded-md bg-gray-100 px-1.5 text-xs text-gray-600">
               {conteo(f) ?? '…'}
