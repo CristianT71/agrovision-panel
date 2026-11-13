@@ -87,7 +87,7 @@ function DatosArchivo({ archivo: a }: { archivo: ArchivoVuelo }) {
   const u = a.ubicacion, gps = a.gps, c = a.camara, o = a.orientacion, m = a.multiespectral
   const grados = (v: number | null | undefined) => hayNumero(v) ? `${numeroVuelo(v)}°` : '—'
   const filas: [string, string | number | null | undefined][] = [
-    ['Hora (America/Bogota)', fechaVuelo(a.capturadoEn)], ['Tamaño', bytesVuelo(a.tamanoBytes)],
+    ['Hora (Colombia)', fechaVuelo(a.capturadoEn)], ['Tamaño', bytesVuelo(a.tamanoBytes)],
     ['Latitud', coordenadaVuelo(u?.latitud)], ['Longitud', coordenadaVuelo(u?.longitud)],
     ['Altitud absoluta (m)', altitudVuelo(u?.altitudAbsolutaM)], ['Tipo de altitud', u?.tipoAltitud], ['Altura relativa', altitudVuelo(u?.alturaRelativaM)],
     ['Estado GPS', gps?.estado], ['RTK', etiquetaRtk(gps)], ['Indicador RTK', gps?.rtkFlag],
