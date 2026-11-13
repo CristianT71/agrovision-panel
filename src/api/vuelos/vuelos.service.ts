@@ -1,5 +1,5 @@
 import type { AxiosProgressEvent } from 'axios'
-import { api } from '../axios'
+import { api, urlArchivo } from '../axios'
 
 // Contrato /api/vuelos. Los valores desconocidos se conservan como null, nunca como cero.
 export type TipoArchivo = 'foto_rgb' | 'banda_multiespectral' | 'video' | 'srt' | 'otro'
@@ -68,6 +68,13 @@ export interface Pagina<T> { datos: T[]; total: number; pagina: number; limite: 
 export interface DatosVuelo { nombre: string; lote?: string; notas?: string }
 export interface FiltrosVuelos { pagina?: number; limite?: number; lote?: string; desde?: string; hasta?: string }
 export interface FiltrosArchivos { pagina?: number; limite?: number; tipo?: TipoArchivo; banda?: Banda }
+// La API entrega los enlaces firmados como ruta relativa (/api/vuelos/medios/…). Sin pasarlos al
+// origen de la API, el navegador los pide al servidor del panel y recibe su HTML, no la imagen.
+function absoluta(url: string | null): string | null {
+  if (!url) return null
+  try { return urlArchivo(url) } catch { return url }
+}
+
 export interface EnlaceArchivo { urlContenido: string; urlMiniatura: string | null; expiraEn: string }
 export interface PuntoTraza {
   type: 'Feature'
@@ -103,7 +110,11 @@ export const vuelosService = {
   obtenerArchivo: (id: string, archivoId: string, signal?: AbortSignal) =>
     api.get<DetalleArchivoVuelo>(rutaArchivo(id, archivoId), { signal }).then(r => r.data),
   pedirEnlace: (id: string, archivoId: string, signal?: AbortSignal) =>
-    api.post<EnlaceArchivo>(`${rutaArchivo(id, archivoId)}/enlace`, undefined, { signal }).then(r => r.data),
+    api.post<EnlaceArchivo>(`${rutaArchivo(id, archivoId)}/enlace`, undefined, { signal }).then(r => ({
+      ...r.data,
+      urlContenido: absoluta(r.data.urlContenido) ?? r.data.urlContenido,
+      urlMiniatura: absoluta(r.data.urlMiniatura),
+    })),
   traza: (id: string, signal?: AbortSignal) => api.get<TrazaVuelo>(`${ruta(id)}/traza`, { signal }).then(r => r.data),
 }
 

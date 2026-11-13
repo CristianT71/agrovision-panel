@@ -23,6 +23,11 @@ export interface ElementoSubida {
   reintentable: boolean
 }
 type Subir = (archivo: File, opciones: OpcionesSubida) => Promise<{ archivo: ArchivoVuelo; duplicado: boolean }>
+// La petición no tiene timeout (archivos de GiB), así que la cola vigila la inactividad: una subida sin progreso
+// o sin respuesta tras enviar todo se aborta y queda reintentable, para no ocupar un cupo indefinidamente.
+// Reintentar es seguro: el servidor responde 200 (duplicado) si ya la había recibido.
+export const SEGUNDOS_SIN_PROGRESO = 120
+export const MINUTOS_ESPERA_RESPUESTA = 10
 
 // Máquina de estados independiente de React. Una cancelación conserva el cupo hasta que
 // termina la petición: reintentar mientras se aborta nunca excede las tres conexiones.
@@ -83,11 +88,24 @@ export class ColaSubidas {
     const controlador = new AbortController()
     this.controladores.set(elemento.id, controlador)
     this.cambiar(elemento.id, { estado: 'subiendo' })
+    let vigia: ReturnType<typeof setTimeout> | undefined
+    const vigilar = (ms: number) => {
+      clearTimeout(vigia)
+      vigia = setTimeout(() => {
+        if (controlador.signal.aborted) return
+        controlador.abort()
+        this.cambiar(elemento.id, { estado: 'error', error: 'La subida se detuvo sin respuesta del servidor. Puedes reintentarla.' })
+      }, ms)
+    }
+    vigilar(SEGUNDOS_SIN_PROGRESO * 1000)
     try {
       const resultado = await this.subir(elemento.archivo, {
         signal: controlador.signal,
         onUploadProgress: evento => {
-          if (!controlador.signal.aborted) this.cambiar(elemento.id, { cargados: Math.min(elemento.archivo.size, evento.loaded) })
+          if (controlador.signal.aborted) return
+          const enviado = evento.loaded >= (evento.total ?? elemento.archivo.size)
+          vigilar(enviado ? MINUTOS_ESPERA_RESPUESTA * 60_000 : SEGUNDOS_SIN_PROGRESO * 1000)
+          this.cambiar(elemento.id, { cargados: Math.min(elemento.archivo.size, evento.loaded) })
         },
       })
       if (!controlador.signal.aborted) {
@@ -96,6 +114,7 @@ export class ColaSubidas {
     } catch (error) {
       if (!controlador.signal.aborted) this.cambiar(elemento.id, { estado: 'error', error: mensajeDeError(error, 'No se pudo subir el archivo.') })
     } finally {
+      clearTimeout(vigia)
       this.controladores.delete(elemento.id)
       this.procesar()
     }

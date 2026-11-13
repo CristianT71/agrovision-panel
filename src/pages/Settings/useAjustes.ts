@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { mensajeDeError } from '../../api/axios'
 import {
   ajustesService,
@@ -13,24 +13,34 @@ type Fuente<T> = {
   guardar: (cambios: Partial<T>) => Promise<T>
 }
 
-// Cada cambio se guarda al instante: se refleja de inmediato y, si el servidor lo rechaza, vuelve al valor anterior
-function useAjustesRemotos<T extends object>({ clave, obtener, guardar }: Fuente<T>) {
-  const queryClient = useQueryClient()
-  const consulta = useQuery({ queryKey: clave, queryFn: obtener })
-
-  const mutacion = useMutation({
+// Cada cambio se guarda al instante: se refleja de inmediato y, si el servidor lo rechaza, vuelve al valor anterior.
+// Los cambios de una misma fuente se envían en fila (scope): una respuesta vieja no pisa a una posterior,
+// y un rechazo solo revierte sus propios campos, no los que otro cambio ya guardó.
+export function opcionesGuardado<T extends object>(queryClient: QueryClient, { clave, guardar }: Pick<Fuente<T>, 'clave' | 'guardar'>) {
+  return {
     mutationFn: guardar,
-    onMutate: async (cambios) => {
+    scope: { id: clave.join('.') },
+    onMutate: async (cambios: Partial<T>) => {
       await queryClient.cancelQueries({ queryKey: clave })
       const anterior = queryClient.getQueryData<T>(clave)
       queryClient.setQueryData<T>(clave, (actual) => (actual ? { ...actual, ...cambios } : actual))
       return { anterior }
     },
-    onError: (_error, _cambios, contexto) => {
-      if (contexto?.anterior) queryClient.setQueryData(clave, contexto.anterior)
+    onError: (_error: unknown, cambios: Partial<T>, contexto?: { anterior?: T }) => {
+      const anterior = contexto?.anterior
+      if (!anterior) return
+      const revertidos = Object.fromEntries(Object.keys(cambios).map((campo) => [campo, anterior[campo as keyof T]]))
+      queryClient.setQueryData<T>(clave, (actual) => (actual ? { ...actual, ...revertidos } : actual))
     },
-    onSuccess: (guardado) => queryClient.setQueryData(clave, guardado),
-  })
+    onSuccess: (guardado: T) => queryClient.setQueryData(clave, guardado),
+  }
+}
+
+function useAjustesRemotos<T extends object>({ clave, obtener, guardar }: Fuente<T>) {
+  const queryClient = useQueryClient()
+  const consulta = useQuery({ queryKey: clave, queryFn: obtener })
+
+  const mutacion = useMutation(opcionesGuardado<T>(queryClient, { clave, guardar }))
 
   return {
     datos: consulta.data,

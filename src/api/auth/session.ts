@@ -1,4 +1,5 @@
 import { queryClient } from '../queryClient'
+import { registrarActividad } from './actividad'
 
 export type Rol = 'profesional' | 'administrador'
 
@@ -17,6 +18,8 @@ const CLAVE_TOKEN = 'token'
 export function guardarSesion(sesion: Sesion, token: string) {
   localStorage.setItem(CLAVE, JSON.stringify(sesion))
   localStorage.setItem(CLAVE_TOKEN, token)
+  // Entrar es actividad: sin esto, el registro de una sesión anterior cerraría la nueva al instante
+  registrarActividad()
 }
 
 export function obtenerToken(): string | null {

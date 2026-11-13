@@ -87,6 +87,8 @@ export interface DatosMetricas {
 // Deben coincidir con los límites de la API
 export const MAX_MB_MODELO = 100
 export const MAX_MB_JSON = 5
+// 100 MiB en 10 min exige ~1,4 Mbit/s sostenidos
+export const MINUTOS_SUBIDA_MODELO = 10
 export const MIN_JUSTIFICACION = 20
 export const MIN_PORCENTAJE_CANARIO = 1
 export const MAX_PORCENTAJE_CANARIO = 50
@@ -105,7 +107,8 @@ export const modelosService = {
     if (datos.etiquetasTxt) formulario.append('etiquetasTxt', datos.etiquetasTxt)
     if (datos.etiquetas) formulario.append('etiquetas', datos.etiquetas)
     if (datos.calibracion) formulario.append('calibracion', datos.calibracion)
-    return api.post<Modelo>('/modelos', formulario).then((r) => r.data)
+    // Hasta MAX_MB_MODELO: con los 30 s globales una conexión lenta cortaría una subida válida
+    return api.post<Modelo>('/modelos', formulario, { timeout: MINUTOS_SUBIDA_MODELO * 60_000 }).then((r) => r.data)
   },
   registrarMetricas: (id: string, datos: DatosMetricas) =>
     api.put<Modelo>(`/modelos/${id}/metricas`, datos).then((r) => r.data),

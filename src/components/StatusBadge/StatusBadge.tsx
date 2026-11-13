@@ -10,15 +10,6 @@ const COLORES: Record<EstadoSolicitud, string> = {
   Descartada: 'bg-red-50 text-red-600',
 }
 
-// Punto de color del mismo semáforo (filtros de la bandeja)
-export const COLOR_PUNTO: Record<EstadoSolicitud, string> = {
-  Pendiente: 'bg-orange-500',
-  Enviada: 'bg-yellow-400',
-  Asignada: 'bg-blue-600',
-  Resuelta: 'bg-green-600',
-  Descartada: 'bg-red-600',
-}
-
 export function StatusBadge({ estado }: { estado: EstadoSolicitud }) {
   return (
     <span className={`rounded-md px-2 py-0.5 text-xs font-medium ${COLORES[estado]}`}>

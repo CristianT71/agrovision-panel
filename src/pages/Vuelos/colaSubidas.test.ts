@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { ArchivoVuelo, OpcionesSubida } from '../../api/vuelos/vuelos.service'
-import { ColaSubidas, limiteArchivoMb, resumenSubidas, validarArchivo } from './colaSubidas'
+import { ColaSubidas, limiteArchivoMb, MINUTOS_ESPERA_RESPUESTA, resumenSubidas, SEGUNDOS_SIN_PROGRESO, validarArchivo } from './colaSubidas'
 
 const archivo = () => new File(['captura'], 'DJI.JPG', { type: 'image/jpeg' })
 const resultado = (duplicado = false) => ({ archivo: { id: 'archivo' } as ArchivoVuelo, duplicado })
@@ -89,6 +89,29 @@ describe('cola de subidas de vuelos', () => {
     cola.agregar([archivo()])
     expect(resumenSubidas(cola.snapshot()).progreso).toBe(100)
     p.resolver(resultado()); await avanzar()
+  })
+  it('aborta las subidas sin progreso ni respuesta y libera sus cupos para la cola', async () => {
+    vi.useFakeTimers()
+    try {
+      const opciones: OpcionesSubida[] = []
+      const subir = vi.fn((_archivo: File, config: OpcionesSubida) => {
+        opciones.push(config)
+        return new Promise<ReturnType<typeof resultado>>((_resolve, reject) => config.signal?.addEventListener('abort', () => reject(new Error('abortada'))))
+      })
+      const cola = new ColaSubidas(subir)
+      cola.agregar(Array.from({ length: 4 }, archivo))
+      type Progreso = Parameters<NonNullable<OpcionesSubida['onUploadProgress']>>[0]
+      // La primera envía todo el cuerpo y espera la respuesta: tiene más margen que una transferencia detenida
+      opciones[0].onUploadProgress?.({ loaded: 10, total: 10 } as Progreso)
+      vi.advanceTimersByTime(SEGUNDOS_SIN_PROGRESO * 1000); await avanzar()
+      expect(cola.snapshot().map(e => e.estado)).toEqual(['subiendo', 'error', 'error', 'subiendo'])
+      expect(cola.snapshot()[1]).toMatchObject({ reintentable: true, error: expect.stringContaining('se detuvo') })
+      expect(subir).toHaveBeenCalledTimes(4)
+      vi.advanceTimersByTime(MINUTOS_ESPERA_RESPUESTA * 60_000); await avanzar()
+      expect(cola.snapshot()[0].estado).toBe('error')
+    } finally {
+      vi.useRealTimers()
+    }
   })
   it('rechaza tipo o tamaño inválidos antes de contactar al servidor', () => {
     const subir = vi.fn()

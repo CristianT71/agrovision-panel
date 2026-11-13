@@ -36,13 +36,13 @@ export default function GaleriaVuelo({ vueloId, seleccionado, abrir }: { vueloId
 }
 function Tarjeta({ archivo, seleccionada, abrir }: { archivo: ArchivoVuelo; seleccionada: boolean; abrir: () => void }) {
   const contenedor = useRef<HTMLDivElement>(null)
-  const [visible, setVisible] = useState(false)
+  // Sin IntersectionObserver la miniatura se carga de inmediato
+  const [visible, setVisible] = useState(() => typeof IntersectionObserver === 'undefined')
   const [fallos, setFallos] = useState(0)
   const enlace = useEnlaceArchivo(archivo.vueloId, archivo.id, visible)
   useEffect(() => {
     const nodo = contenedor.current
-    if (!nodo) return
-    if (!('IntersectionObserver' in window)) { setVisible(true); return }
+    if (!nodo || typeof IntersectionObserver === 'undefined') return
     const observador = new IntersectionObserver(([entrada]) => setVisible(entrada.isIntersecting), { rootMargin: '150px' })
     observador.observe(nodo)
     return () => observador.disconnect()
