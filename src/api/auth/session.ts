@@ -1,3 +1,5 @@
+import { queryClient } from '../queryClient'
+
 export type Rol = 'profesional' | 'administrador'
 
 // Rol tal como lo guarda la API
@@ -51,6 +53,7 @@ export function obtenerSesion(): Sesion | null {
 
 // RF-01.8 — invalidar sesión y purgar datos locales
 export function cerrarSesion() {
+  queryClient.clear()
   localStorage.removeItem(CLAVE)
   localStorage.removeItem(CLAVE_TOKEN)
 }

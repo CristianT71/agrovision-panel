@@ -70,6 +70,7 @@ const ITEMS_ADMIN: Item[] = [
   { to: '/modelos', label: 'Modelos IA', icon: iconChip },
   { to: '/detecciones', label: 'Monitor de detecciones', icon: iconRadar },
   { to: '/mapa', label: 'Mapa de casos', icon: iconMap },
+  { to: '/vuelos', label: 'Vuelos de dron', icon: iconRadar },
   { to: '/cuentas', label: 'Cuentas', icon: iconUsers },
 ]
 

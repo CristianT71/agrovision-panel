@@ -34,6 +34,8 @@ const AiModels = lazy(() => import('./pages/AiModels/AiModels'))
 const Accounts = lazy(() => import('./pages/Accounts/Accounts'))
 const DetectionsMonitor = lazy(() => import('./pages/DetectionsMonitor/DetectionsMonitor'))
 const CasesMap = lazy(() => import('./pages/CasesMap/CasesMap'))
+const Vuelos = lazyReact(() => import('./pages/Vuelos/Vuelos'))
+const VueloDetalle = lazyReact(() => import('./pages/Vuelos/VueloDetalle'))
 
 function Inicio() {
   const sesion = obtenerSesion()
@@ -66,6 +68,8 @@ function App() {
               <Route path="/cuentas" element={<Accounts />} />
               <Route path="/detecciones" element={<DetectionsMonitor />} />
               <Route path="/mapa" element={<CasesMap />} />
+              <Route path="/vuelos" element={<Vuelos />} />
+              <Route path="/vuelos/:id" element={<VueloDetalle />} />
             </Route>
 
             {/* RF-02.4 — comunes a ambos roles */}

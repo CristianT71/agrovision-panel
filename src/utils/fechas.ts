@@ -8,7 +8,7 @@ export function formatearFecha(iso: string): string {
   return new Date(iso).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-export function formatearFechaHora(iso: string): string {
+export function formatearFechaHora(iso: string, opciones: Intl.DateTimeFormatOptions = {}): string {
   if (!esFechaValida(iso)) return SIN_FECHA
   return new Date(iso).toLocaleString('es-CO', {
     day: 'numeric',
@@ -16,6 +16,7 @@ export function formatearFechaHora(iso: string): string {
     year: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
+    ...opciones,
   })
 }
 
