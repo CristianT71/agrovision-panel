@@ -21,6 +21,9 @@ export interface PerfilAgronomo {
   especialidad: string
   estado: EstadoAgronomo
   fechaAlta: string
+  // Términos aceptados al solicitar acceso (null en cuentas anteriores a su registro)
+  terminosVersion: string | null
+  terminosFecha: string | null
   casosActivos: number
   documentos: DocumentoAgronomo[]
 }
@@ -40,6 +43,8 @@ export interface RegistroAgronomo {
   tarjetaProfesional: string
   especialidad: string
   documentos: File[]
+  // Versión de los términos y condiciones que aceptó
+  terminosVersion: string
 }
 
 export interface RespuestaRegistro {
@@ -66,6 +71,8 @@ export const agronomosService = {
     formulario.append('correo', datos.correo)
     formulario.append('tarjetaProfesional', datos.tarjetaProfesional)
     formulario.append('especialidad', datos.especialidad)
+    formulario.append('aceptaTerminos', 'true')
+    formulario.append('terminosVersion', datos.terminosVersion)
     datos.documentos.forEach((documento) => formulario.append('documentos', documento))
 
     return api.post<RespuestaRegistro>('/agronomos/registro', formulario).then((r) => r.data)
