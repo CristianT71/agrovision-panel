@@ -6,6 +6,8 @@ import Button from '../../components/Button/Button'
 import Input from '../../components/Input/Input'
 import { agronomosService, ESPECIALIDADES } from '../../api/agronomos/agronomos.service'
 import { mensajeDeError } from '../../api/axios'
+import TerminosModal from './TerminosModal'
+import { VERSION_TERMINOS_AGRONOMO } from './terminosAgronomo'
 
 // RF-01.3 — mismos prefijos que el login
 const PREFIJOS = [
@@ -35,6 +37,8 @@ export default function RequestAccess() {
   const [especialidad, setEspecialidad] = useState('')
   const [documentos, setDocumentos] = useState<File[]>([])
   const [errorDocumentos, setErrorDocumentos] = useState<string | null>(null)
+  const [aceptaTerminos, setAceptaTerminos] = useState(false)
+  const [verTerminos, setVerTerminos] = useState(false)
 
   const registro = useMutation({ mutationFn: agronomosService.registrar })
 
@@ -42,7 +46,8 @@ export default function RequestAccess() {
 
   const step1Valid = nombre.trim().length > 2 && celularNumerico.length >= 7 && /\S+@\S+\.\S+/.test(correo)
 
-  const step2Valid = tarjeta.trim().length > 3 && especialidad !== '' && documentos.length > 0
+  const step2Valid =
+    tarjeta.trim().length > 3 && especialidad !== '' && documentos.length > 0 && aceptaTerminos
 
   const agregarDocumentos = (e: React.ChangeEvent<HTMLInputElement>) => {
     setErrorDocumentos(null)
@@ -73,6 +78,7 @@ export default function RequestAccess() {
       tarjetaProfesional: tarjeta.trim(),
       especialidad,
       documentos,
+      terminosVersion: VERSION_TERMINOS_AGRONOMO,
     })
   }
 
@@ -264,7 +270,28 @@ export default function RequestAccess() {
             </div>
           </div>
 
-          <div className="mt-6">
+          {/* Términos y condiciones: sin aceptarlos no se envía la solicitud */}
+          <label className="mt-6 flex cursor-pointer items-start gap-2.5 text-sm text-gray-600">
+            <input
+              type="checkbox"
+              checked={aceptaTerminos}
+              onChange={(e) => setAceptaTerminos(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 accent-agro-green"
+            />
+            <span>
+              He leído y acepto los{' '}
+              <button
+                type="button"
+                onClick={() => setVerTerminos(true)}
+                className="font-medium text-agro-green underline hover:text-[#194b32]"
+              >
+                términos y condiciones
+              </button>{' '}
+              de uso para agrónomos y el tratamiento de mis datos personales.
+            </span>
+          </label>
+
+          <div className="mt-5">
             <Button disabled={!step2Valid || registro.isPending} onClick={enviar}>
               {registro.isPending ? 'Enviando...' : 'Enviar solicitud de acceso'}
             </Button>
@@ -287,6 +314,8 @@ export default function RequestAccess() {
           </p>
         </>
       )}
+
+      {verTerminos && <TerminosModal onClose={() => setVerTerminos(false)} />}
     </AuthLayout>
   )
 }

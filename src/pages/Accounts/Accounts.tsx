@@ -672,6 +672,15 @@ function ModalDocumentos({ agronomo, onCerrar }: { agronomo: AgronomoResumen; on
             <p className="mt-1 text-sm text-gray-500">
               {agronomo.nombre} · tarjeta {agronomo.tarjetaProfesional}
             </p>
+            {detalle.data && (
+              <p className="mt-1 text-xs text-gray-500">
+                {detalle.data.terminosVersion
+                  ? `Aceptó los términos y condiciones v${detalle.data.terminosVersion}${
+                      detalle.data.terminosFecha ? ` · ${formatearFecha(detalle.data.terminosFecha)}` : ''
+                    }`
+                  : 'Sin registro de aceptación de términos (cuenta anterior)'}
+              </p>
+            )}
           </div>
           <button type="button" title="Cerrar" onClick={onCerrar} className="text-gray-400 hover:text-gray-600">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
