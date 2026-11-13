@@ -19,6 +19,8 @@ export interface AvalPlaga {
 
 export interface Plaga {
   id: string
+  // Compatibilidad con respuestas anteriores: si falta, se trata como false.
+  protegida?: boolean
   nombreComun: string
   nombreCientifico: string | null
   tipo: TipoPlaga
@@ -56,6 +58,7 @@ export const plagasService = {
   listar: (filtros: FiltrosPlagas) => api.get<Plaga[]>('/plagas', { params: filtros }).then((r) => r.data),
   crear: (datos: DatosFicha) => api.post<Plaga>('/plagas', datos).then((r) => r.data),
   actualizar: (id: string, datos: Partial<DatosFicha>) => api.patch<Plaga>(`/plagas/${id}`, datos).then((r) => r.data),
+  eliminar: (id: string): Promise<void> => api.delete<void>(`/plagas/${id}`).then(() => undefined),
   // RF-05.7 — firma el agrónomo autenticado
   avalar: (id: string) => api.post<Plaga>(`/plagas/${id}/avales`).then((r) => r.data),
   // RF-05.6 — la API lo rechaza si la ficha no tiene aval
@@ -70,6 +73,7 @@ export const plagasService = {
 
 export const clavesPlagas = {
   todas: ['plagas'] as const,
+  listas: ['plagas', 'lista'] as const,
   lista: (filtros: FiltrosPlagas) => ['plagas', 'lista', filtros] as const,
 }
 

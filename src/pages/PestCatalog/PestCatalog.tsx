@@ -24,6 +24,7 @@ export default function PestCatalog() {
   const [busqueda, setBusqueda] = useState('')
   const [busquedaAplicada, setBusquedaAplicada] = useState('')
   const [drawer, setDrawer] = useState<Drawer>(null)
+  const [confirmacion, setConfirmacion] = useState('')
 
   // Espera a que el usuario deje de escribir para no consultar la API en cada tecla
   useEffect(() => {
@@ -65,6 +66,12 @@ export default function PestCatalog() {
           Nueva ficha
         </button>
       </div>
+
+      {confirmacion && (
+        <p role="status" className="mt-4 rounded-xl bg-green-50 px-4 py-3 text-sm text-agro-green">
+          {confirmacion}
+        </p>
+      )}
 
       {/* Búsqueda  */}
       <div className="relative mt-6">
@@ -132,6 +139,10 @@ export default function PestCatalog() {
           key={drawer.apertura}
           ficha={drawer.ficha}
           onGuardada={(ficha) => setDrawer((actual) => actual && { ...actual, ficha })}
+          onEliminada={() => {
+            setDrawer(null)
+            setConfirmacion('Ficha eliminada correctamente.')
+          }}
           onClose={() => setDrawer(null)}
         />
       )}

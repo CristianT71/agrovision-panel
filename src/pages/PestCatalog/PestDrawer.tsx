@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import TagInput from '../../components/TagInput/TagInput'
 import Button from '../../components/Button/Button'
+import EliminarFichaModal from './EliminarFichaModal'
 import {
   clavesPlagas,
   componerProtocolo,
@@ -27,12 +28,14 @@ type Props = {
   // Sin ficha se crea una nueva; con ficha se ve y edita la existente
   ficha?: Plaga
   onGuardada: (ficha: Plaga) => void
+  onEliminada: () => void
   onClose: () => void
 }
 
-export default function PestDrawer({ ficha, onGuardada, onClose }: Props) {
+export default function PestDrawer({ ficha, onGuardada, onEliminada, onClose }: Props) {
   const queryClient = useQueryClient()
   const esNueva = !ficha
+  const [mostrarEliminar, setMostrarEliminar] = useState(false)
 
   // Identificación
   const [nombreComun, setNombreComun] = useState(ficha?.nombreComun ?? '')
@@ -68,11 +71,11 @@ export default function PestDrawer({ ficha, onGuardada, onClose }: Props) {
   // Cerrar con Escape
   useEffect(() => {
     const manejar = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape' && !mostrarEliminar) onClose()
     }
     window.addEventListener('keydown', manejar)
     return () => window.removeEventListener('keydown', manejar)
-  }, [onClose])
+  }, [onClose, mostrarEliminar])
 
   // Libera la URL temporal de la vista previa
   useEffect(() => {
@@ -434,6 +437,16 @@ export default function PestDrawer({ ficha, onGuardada, onClose }: Props) {
           {guardar.isSuccess && !guardar.isPending && (
             <p className="mb-3 text-sm text-agro-green">Ficha guardada.</p>
           )}
+          {ficha && !ficha.protegida && (
+            <button
+              type="button"
+              disabled={guardar.isPending || avalar.isPending || guardarProtocolo.isPending}
+              onClick={() => setMostrarEliminar(true)}
+              className="mb-3 w-full rounded-lg border border-red-200 py-2.5 text-sm font-medium text-red-600 transition enabled:hover:border-red-300 enabled:hover:bg-red-50 disabled:opacity-50"
+            >
+              Eliminar ficha
+            </button>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
@@ -448,6 +461,13 @@ export default function PestDrawer({ ficha, onGuardada, onClose }: Props) {
           </div>
         </footer>
       </aside>
+      {mostrarEliminar && ficha && !ficha.protegida && (
+        <EliminarFichaModal
+          ficha={ficha}
+          onClose={() => setMostrarEliminar(false)}
+          onEliminada={onEliminada}
+        />
+      )}
     </div>
   )
 }
