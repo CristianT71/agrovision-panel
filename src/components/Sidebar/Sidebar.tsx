@@ -57,10 +57,21 @@ const iconMap = (
   </svg>
 )
 
+const iconTabla = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-5 w-5">
+    <rect x="3" y="4" width="18" height="16" rx="2" />
+    <path d="M3 9h18M3 14h18M9 9v11" strokeLinecap="round" />
+  </svg>
+)
+
+// Reglas de zona: módulo compartido por ambos roles
+const ITEM_REGLAS_ZONA: Item = { to: '/reglas-zona', label: 'Reglas de zona', icon: iconTabla }
+
 // RF-02.2 — accesos exclusivos del rol Profesional
 const ITEMS_PROFESIONAL: Item[] = [
   { to: '/solicitudes', label: 'Solicitudes', icon: iconInbox },
   { to: '/catalogo', label: 'Catálogo de plagas', icon: iconBook },
+  ITEM_REGLAS_ZONA,
 ]
 
 // RF-02.3 — accesos exclusivos del rol Administrador
@@ -71,6 +82,7 @@ const ITEMS_ADMIN: Item[] = [
   { to: '/detecciones', label: 'Monitor de detecciones', icon: iconRadar },
   { to: '/mapa', label: 'Mapa de casos', icon: iconMap },
   { to: '/vuelos', label: 'Vuelos de dron', icon: iconRadar },
+  ITEM_REGLAS_ZONA,
   { to: '/cuentas', label: 'Cuentas', icon: iconUsers },
 ]
 

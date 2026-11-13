@@ -36,6 +36,7 @@ const DetectionsMonitor = lazy(() => import('./pages/DetectionsMonitor/Detection
 const CasesMap = lazy(() => import('./pages/CasesMap/CasesMap'))
 const Vuelos = lazyReact(() => import('./pages/Vuelos/Vuelos'))
 const VueloDetalle = lazyReact(() => import('./pages/Vuelos/VueloDetalle'))
+const ReglasZona = lazy(() => import('./pages/ReglasZona/ReglasZona'))
 
 function Inicio() {
   const sesion = obtenerSesion()
@@ -74,6 +75,8 @@ function App() {
 
             {/* RF-02.4 — comunes a ambos roles */}
             <Route path="/perfil" element={<Profile />} />
+            {/* Reglas de zona: admin y agrónomo (el botón Aprobar solo lo ve el agrónomo) */}
+            <Route path="/reglas-zona" element={<ReglasZona />} />
             <Route path="/ajustes" element={<Settings />} />
           </Route>
         </Route>
