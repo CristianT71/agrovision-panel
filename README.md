@@ -28,7 +28,7 @@ Consume la API [agrovision-api](https://github.com/CristianT71/agrovision-api).
 3. Instala y ejecuta:
 
    ```bash
-   npm i
+   npm install
    npm run dev      # http://localhost:5173
    ```
 
