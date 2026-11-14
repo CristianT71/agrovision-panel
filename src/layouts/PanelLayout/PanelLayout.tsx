@@ -2,6 +2,7 @@ import { Suspense, useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import Sidebar from '../../components/Sidebar/Sidebar'
 import Topbar from '../../components/Topbar/Topbar'
+import ChatAsistente from '../../components/ChatAsistente/ChatAsistente'
 import ErrorBoundary from '../../components/ErrorBoundary/ErrorBoundary'
 import { useCierrePorInactividad } from './useCierrePorInactividad'
 import { obtenerSesion, calcularIniciales } from '../../api/auth/session'
@@ -46,6 +47,7 @@ export default function PanelLayout() {
           </ErrorBoundary>
         </main>
       </div>
+      {esAdmin && <ChatAsistente />}
     </div>
   )
 }

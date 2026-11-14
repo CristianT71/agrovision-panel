@@ -19,3 +19,9 @@ La hora usa siempre `America/Bogota`. RTK fijo requiere `rtkFlag === 50`; otros 
 ## Verificación
 
 `npx tsc --noEmit`, `npx tsc --noEmit -p tsconfig.app.json`, `npx vitest run` y `npx vite build`. Las pruebas cubren la cola (concurrencia, errores, duplicados, cancelación y reintento mientras el aborto termina), formatos, RTK, servicio, purga al cerrar sesión y renderizado de lista vacía/403. Los endpoints, la extracción de metadatos y los enlaces reales requieren el backend del contrato para una prueba de integración.
+
+## Asistente de análisis
+
+Configura `VITE_N8N_CHAT_WEBHOOK_URL` con la URL de producción del webhook o Chat Trigger de n8n y reconstruye el panel. El navegador debe poder acceder a esa URL y n8n (o su proxy) debe permitir CORS para el origen del panel, incluido `POST`, `OPTIONS` y la cabecera `Content-Type`. La URL se incluye en el código público del panel: no contiene secretos. El flujo de n8n debe controlar el acceso y el uso que corresponda a su despliegue.
+
+Cada mensaje se envía como JSON `{"action":"sendMessage","sessionId":"...","chatInput":"..."}`. El flujo debe responder en la misma petición con JSON `{"output":"respuesta"}`; también se admite un arreglo cuyo primer elemento tenga `output`. Configura el nodo webhook para responder al finalizar el flujo y activa el workflow para usar la URL de producción. El `sessionId` se mantiene durante la conversación y cambia al iniciar una nueva. No se envían automáticamente capturas, metadatos de vuelos ni credenciales del panel; solo el texto escrito por el usuario. El chat está disponible en todas las pantallas del administrador. El historial permanece en memoria mientras se navega por el panel y se pierde al cerrar la sesión o recargar la página.
