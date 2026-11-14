@@ -11,7 +11,7 @@ Pantalla `/reglas-zona` para los roles admin (`administrador` en el panel) y agr
 
 ## Comportamiento
 
-- Solo el borrador se puede editar: filas, notas, Guardar y Eliminar. Las demás versiones son de solo lectura y ofrecen Duplicar. El PATCH envía únicamente `notas` y `filas`, con las filas numeradas 1..n según su posición. El tipo de enfermedad se elige solo al crear la regla.
+- Solo el borrador se puede editar: filas, notas, Guardar y Eliminar. Las demás versiones son de solo lectura y ofrecen Duplicar. El PATCH envía la `revision` del borrador que se vio al cargar y únicamente las `notas` y `filas` que cambiaron, con las filas numeradas 1..n según su posición. Aprobar envía también la `revision` vista al abrir el diálogo. Si el API responde 409 `VERSION_EN_CONFLICTO` (otra persona cambió el borrador), los cambios locales se quedan en pantalla, no se pueden guardar sobre la versión nueva y se ofrece cargar la versión guardada. El tipo de enfermedad se elige solo al crear la regla.
 - El botón Aprobar aparece solo para el agrónomo y solo en el borrador. Si el guard de roles responde 403 sin `codigo`, se muestra "Solo un agrónomo validado puede aprobar una regla de zona.".
 - El diálogo de aprobación muestra el nombre y la tarjeta profesional del agrónomo (`GET /agronomos/me`). Si se marca "calibrada", la nota es obligatoria y el envío queda bloqueado sin ella. La nota se ve dentro de las notas de la regla ("Nota de calibración:" / "Nota de aprobación:"), resaltada.
 - Activar y Archivar piden confirmación. Activar avisa que "Esto reemplaza la regla activa actual". Archivar se ofrece desde aprobada o activa.

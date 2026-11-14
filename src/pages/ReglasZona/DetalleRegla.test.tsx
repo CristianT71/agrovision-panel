@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useState } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, useMutation } from '@tanstack/react-query'
 import type { EstadoRegla, ReglaZona } from '../../api/reglas-zona/reglas-zona.service'
 import DetalleRegla from './DetalleRegla'
 import { aEditables, type FilaEditable } from './logica'
@@ -12,8 +12,13 @@ vi.mock('react', async (original) => {
   return { ...react, useState: vi.fn(react.useState) }
 })
 
+vi.mock('@tanstack/react-query', async (original) => {
+  const query = await original<typeof import('@tanstack/react-query')>()
+  return { ...query, useMutation: vi.fn(query.useMutation) }
+})
+
 const regla = (estado: EstadoRegla): ReglaZona => ({
-  id: '44444444-4444-4444-8444-444444444444', tipoEnfermedad: 'roya', version: 1, estado, calibrada: false,
+  id: '44444444-4444-4444-8444-444444444444', tipoEnfermedad: 'roya', version: 1, revision: 2, estado, calibrada: false,
   notas: 'Valores de EJEMPLO.', filas: [{ orden: 1, sevMax: 100, incMax: 100, radioMinM: 0, radioMaxM: 5 }],
   creadaPor: null, creadaEn: '2026-01-01T00:00:00Z', aprobadaPor: null, aprobadaEn: null, activadaEn: null,
 })
@@ -30,7 +35,7 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-// Orden de useState en DetalleRegla: filas, notas, diálogo, base
+// Orden de useState en DetalleRegla: filas, notas, diálogo, base, revisión base
 function detalle(estado: EstadoRegla, estadoInicial: { filas?: FilaEditable[]; base?: string } = {}) {
   const r = regla(estado)
   const real = vi.mocked(useState).getMockImplementation() as unknown as (inicial: unknown) => ReturnType<typeof useState>
@@ -73,6 +78,20 @@ describe('detalle de la regla', () => {
     const html = detalle('borrador', { filas: modificadas, base: 'huella anterior' })
     expect(html).toContain('Esta regla cambió mientras la editabas')
     expect(html).toContain('value="77"')
+    // No se puede guardar encima de la versión nueva; sí recargarla
+    expect(boton(html, 'Guardar')).toContain('disabled=""')
+    expect(html).toContain('Descartar mis cambios y cargar la versión guardada')
+  })
+
+  it('si el API rechaza el guardado con 409 VERSION_EN_CONFLICTO, conserva lo local y ofrece recargar', () => {
+    const error = { isAxiosError: true, response: { status: 409, data: { codigo: 'VERSION_EN_CONFLICTO', mensaje: 'x' } } }
+    // La primera mutación del detalle es la de guardar
+    vi.mocked(useMutation).mockReturnValueOnce({ error, isError: true, isPending: false, reset: vi.fn() } as unknown as ReturnType<typeof useMutation>)
+    const html = detalle('borrador', { filas: modificadas })
+    expect(html).toContain('Esta regla cambió mientras la editabas y tu guardado no se aplicó')
+    expect(html).toContain('value="77"')
+    expect(html).toContain('Descartar mis cambios y cargar la versión guardada')
+    expect(boton(html, 'Guardar')).toContain('disabled=""')
   })
 
   it('en solo lectura muestra las filas guardadas, no el estado del editor', () => {

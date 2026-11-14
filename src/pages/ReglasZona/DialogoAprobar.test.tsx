@@ -17,7 +17,7 @@ vi.mock('@tanstack/react-query', async (original) => {
 })
 
 const regla: ReglaZona = {
-  id: '44444444-4444-4444-8444-444444444444', tipoEnfermedad: 'roya', version: 1, estado: 'borrador', calibrada: false,
+  id: '44444444-4444-4444-8444-444444444444', tipoEnfermedad: 'roya', version: 1, revision: 3, estado: 'borrador', calibrada: false,
   notas: 'Valores de EJEMPLO.', filas: [{ orden: 1, sevMax: 100, incMax: 100, radioMinM: 0, radioMaxM: 5 }],
   creadaPor: null, creadaEn: '2026-01-01T00:00:00Z', aprobadaPor: null, aprobadaEn: null, activadaEn: null,
 }
@@ -86,12 +86,20 @@ describe('diálogo de aprobación', () => {
     dialogo()
     const opciones = vi.mocked(useMutation).mock.calls[0][0]
     const mutacion = cliente.getMutationCache().build(cliente, opciones)
-    await expect(mutacion.execute({ calibrada: true, nota: 'ok' })).rejects.toBeDefined()
-    expect(aprobar).toHaveBeenCalledExactlyOnceWith(regla.id, { calibrada: true, nota: 'ok' })
+    await expect(mutacion.execute({ revision: 3, calibrada: true, nota: 'ok' })).rejects.toBeDefined()
+    expect(aprobar).toHaveBeenCalledExactlyOnceWith(regla.id, { revision: 3, calibrada: true, nota: 'ok' })
 
     vi.mocked(useMutation).mockReturnValueOnce({ ...mutacion.state, isError: true, isPending: false } as unknown as ReturnType<typeof useMutation>)
     const html = dialogo()
     expect(html).toContain('Solo un agrónomo validado puede aprobar una regla de zona.')
     expect(html).not.toContain('Forbidden resource')
+  })
+
+  it('ante 409 VERSION_EN_CONFLICTO explica que no se aprobó y bloquea reintentar con la misma revisión', () => {
+    const error = { isAxiosError: true, response: { status: 409, data: { codigo: 'VERSION_EN_CONFLICTO', mensaje: 'x' } } }
+    vi.mocked(useMutation).mockReturnValueOnce({ error, isError: true, isPending: false } as unknown as ReturnType<typeof useMutation>)
+    const html = dialogo()
+    expect(html).toContain('La regla cambió después de que abriste esta ventana y no se aprobó.')
+    expect(botonAprobar(html)).toContain('disabled=""')
   })
 })

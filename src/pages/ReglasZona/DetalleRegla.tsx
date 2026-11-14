@@ -9,11 +9,14 @@ import {
   accionesDisponibles,
   aEditables,
   aFilas,
+  cuerpoGuardado,
+  esConflictoRevision,
   huellaContenido,
   MAX_NOTAS,
   mensajeErrorRegla,
   motivoBloqueoAprobar,
   parrafosNotas,
+  revisionVista,
   sincronizarEditor,
   textoActivacion,
   validarFilas,
@@ -46,6 +49,8 @@ export default function DetalleRegla({ regla, rol, seleccionar }: Props) {
   const [dialogo, setDialogo] = useState<Confirmacion>(null)
   // Huella de lo guardado de lo que partió el editor: detecta recargas de la misma regla
   const [base, setBase] = useState(() => huellaContenido(regla.filas, regla.notas))
+  // Revisión de esa misma versión guardada: es la que se envía al guardar si llega un conflicto
+  const [revisionBase, setRevisionBase] = useState(regla.revision)
   const idNotas = useId()
 
   const editar = useEditarRegla(regla.id)
@@ -65,19 +70,35 @@ export default function DetalleRegla({ regla, rol, seleccionar }: Props) {
   const servidor = huellaContenido(regla.filas, regla.notas)
   const local = huellaContenido(filasNuevas, notasNuevas)
   const sincronizacion = acciones.editar ? sincronizarEditor(base, servidor, local) : 'al-dia'
+  const adoptarGuardado = () => {
+    setBase(servidor)
+    setRevisionBase(regla.revision)
+  }
   const recargar = () => {
     setFilas(aEditables(regla.filas))
     setNotas(regla.notas ?? '')
-    setBase(servidor)
+    adoptarGuardado()
   }
   if (sincronizacion === 'recargar') recargar()
-  else if (sincronizacion === 'adoptar') setBase(servidor)
+  else if (sincronizacion === 'adoptar') adoptarGuardado()
   const sinGuardar = acciones.editar && local !== servidor
+  // Conflicto: lo detectó la recarga de la lista, o el API rechazó el guardado con 409 VERSION_EN_CONFLICTO.
+  // En ambos casos el trabajo local se queda en pantalla hasta que la persona decida recargar.
+  const guardadoRechazado = sinGuardar && esConflictoRevision(editar.error)
+  const enConflicto = sincronizacion === 'conflicto' || guardadoRechazado
   const bloqueoAprobar = motivoBloqueoAprobar(sinGuardar, errores.length > 0)
 
   const guardar = () => {
-    if (errores.length > 0 || editar.isPending) return
-    editar.mutate({ ...(filasCambiaron ? { filas: filasNuevas } : {}), ...(notasCambiaron ? { notas: notasNuevas } : {}) })
+    if (errores.length > 0 || editar.isPending || enConflicto) return
+    editar.mutate(
+      cuerpoGuardado(revisionVista(sincronizacion, revisionBase, regla.revision), {
+        filas: filasNuevas, filasCambiaron, notas: notasNuevas, notasCambiaron,
+      }),
+    )
+  }
+  const cargarGuardada = () => {
+    editar.reset()
+    recargar()
   }
   const cerrarDialogo = () => {
     activar.reset(); archivar.reset(); eliminar.reset()
@@ -122,10 +143,13 @@ export default function DetalleRegla({ regla, rol, seleccionar }: Props) {
         </header>
 
         {!regla.calibrada && <AvisoSinCalibrar />}
-        {sincronizacion === 'conflicto' && (
+        {enConflicto && (
           <div role="alert" className="space-y-2 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            <p>Esta regla cambió mientras la editabas. Si guardas, tus cambios reemplazarán los guardados.</p>
-            <button type="button" className={BOTON} onClick={recargar}>Descartar mis cambios y cargar la versión guardada</button>
+            <p>
+              Esta regla cambió mientras la editabas{guardadoRechazado ? ' y tu guardado no se aplicó' : ''}. Tus cambios siguen en
+              pantalla, pero no se pueden guardar sobre la versión nueva: anota lo que necesites y carga la versión guardada.
+            </p>
+            <button type="button" className={BOTON} onClick={cargarGuardada}>Descartar mis cambios y cargar la versión guardada</button>
           </div>
         )}
         {duplicar.isError && <MensajeError error={mensajeErrorRegla(duplicar.error, 'No se pudo duplicar la regla.')} />}
@@ -176,14 +200,14 @@ export default function DetalleRegla({ regla, rol, seleccionar }: Props) {
 
         {acciones.editar && (
           <div className="flex flex-wrap items-center gap-3">
-            <button type="button" className={PRIMARIO} disabled={errores.length > 0 || editar.isPending || (!filasCambiaron && !notasCambiaron)} onClick={guardar}>
+            <button type="button" className={PRIMARIO} disabled={errores.length > 0 || editar.isPending || enConflicto || (!filasCambiaron && !notasCambiaron)} onClick={guardar}>
               {editar.isPending ? 'Guardando…' : 'Guardar'}
             </button>
             {editar.isSuccess && !filasCambiaron && !notasCambiaron && <span role="status" className="text-sm text-green-700">Cambios guardados.</span>}
             {acciones.aprobar && bloqueoAprobar && <span className="text-sm text-gray-500">{bloqueoAprobar}</span>}
           </div>
         )}
-        {editar.isError && <MensajeError error={mensajeErrorRegla(editar.error, 'No se pudo guardar la regla.')} />}
+        {editar.isError && !esConflictoRevision(editar.error) && <MensajeError error={mensajeErrorRegla(editar.error, 'No se pudo guardar la regla.')} />}
       </section>
 
       <Simulador regla={regla} sinGuardar={sinGuardar} />

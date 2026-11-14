@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { agronomosService, clavesAgronomos } from '../../api/agronomos/agronomos.service'
 import type { ReglaZona } from '../../api/reglas-zona/reglas-zona.service'
-import { cuerpoAprobacion, MAX_NOTA_APROBACION, mensajeErrorRegla, validarAprobacion } from './logica'
+import { cuerpoAprobacion, esConflictoRevision, MAX_NOTA_APROBACION, mensajeErrorRegla, validarAprobacion } from './logica'
 import { useAprobarRegla } from './useReglasZona'
 import { BOTON, CAMPO, Dialogo, MensajeError, PRIMARIO } from './ui'
 
@@ -13,13 +13,17 @@ type Props = { regla: ReglaZona; cerrar: () => void }
 export default function DialogoAprobar({ regla, cerrar }: Props) {
   const [calibrada, setCalibrada] = useState(false)
   const [nota, setNota] = useState('')
+  // Revisión de la tabla que el agrónomo tenía a la vista al abrir: si la regla se recarga con el diálogo abierto, no cambia
+  const [revision] = useState(regla.revision)
   const perfil = useQuery({ queryKey: clavesAgronomos.miPerfil, queryFn: () => agronomosService.miPerfil() })
   const aprobar = useAprobarRegla(regla.id)
 
   const errorLocal = validarAprobacion(calibrada, nota)
   const noValidado = perfil.data !== undefined && perfil.data.estado !== 'activo'
   // Sin perfil cargado y activo no se envía (el API sigue siendo quien autoriza)
-  const puedeEnviar = perfil.data?.estado === 'activo' && !errorLocal && !aprobar.isPending
+  // Tras un conflicto no se reintenta con la misma revisión: hay que cerrar y revisar la versión guardada
+  const conflicto = esConflictoRevision(aprobar.error)
+  const puedeEnviar = perfil.data?.estado === 'activo' && !errorLocal && !aprobar.isPending && !conflicto
   const salir = () => { if (!aprobar.isPending) cerrar() }
 
   return (
@@ -28,7 +32,7 @@ export default function DialogoAprobar({ regla, cerrar }: Props) {
         className="space-y-4"
         onSubmit={(e) => {
           e.preventDefault()
-          if (puedeEnviar) aprobar.mutate(cuerpoAprobacion(calibrada, nota), { onSuccess: cerrar })
+          if (puedeEnviar) aprobar.mutate(cuerpoAprobacion(revision, calibrada, nota), { onSuccess: cerrar })
         }}
       >
         <div className="rounded-xl bg-gray-50 px-4 py-3 text-sm">
@@ -68,7 +72,12 @@ export default function DialogoAprobar({ regla, cerrar }: Props) {
         </label>
 
         {errorLocal && <p role="alert" className="text-sm text-red-700">{errorLocal}</p>}
-        {aprobar.isError && (
+        {conflicto && (
+          <p role="alert" className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            La regla cambió después de que abriste esta ventana y no se aprobó. Ciérrala, revisa la tabla guardada y vuelve a aprobar.
+          </p>
+        )}
+        {aprobar.isError && !conflicto && (
           <MensajeError error={mensajeErrorRegla(aprobar.error, 'No se pudo aprobar la regla.', 'Solo un agrónomo validado puede aprobar una regla de zona.')} />
         )}
 

@@ -1,7 +1,7 @@
 import axios from 'axios'
 import { mensajeDeError } from '../../api/axios'
 import type { Rol } from '../../api/auth/session'
-import type { DatosAprobacion, EstadoRegla, FilaRegla, ReglaZona } from '../../api/reglas-zona/reglas-zona.service'
+import type { CambiosRegla, DatosAprobacion, EstadoRegla, FilaRegla, ReglaZona } from '../../api/reglas-zona/reglas-zona.service'
 
 // Lógica pura de la pantalla de reglas de zona: se prueba sin DOM.
 
@@ -106,6 +106,23 @@ export function sincronizarEditor(base: string, servidor: string, local: string)
   return 'conflicto'
 }
 
+// Revisión que respalda lo que hay en el editor. Si lo guardado cambió bajo un editor modificado (conflicto) se
+// mantiene la que se vio al cargar, para que el API rechace el guardado en vez de pisar cambios que no se vieron.
+export const revisionVista = (sincronizacion: Sincronizacion, revisionBase: number, revisionServidor: number) =>
+  sincronizacion === 'conflicto' ? revisionBase : revisionServidor
+
+// Solo viaja lo que cambió: un guardado de notas no reenvía la tabla
+export function cuerpoGuardado(
+  revision: number,
+  cambios: { filas: FilaRegla[]; filasCambiaron: boolean; notas: string | null; notasCambiaron: boolean },
+): CambiosRegla {
+  return {
+    revision,
+    ...(cambios.filasCambiaron ? { filas: cambios.filas } : {}),
+    ...(cambios.notasCambiaron ? { notas: cambios.notas } : {}),
+  }
+}
+
 // El API aprueba la tabla guardada: no se aprueba lo que no se ve guardado
 export function motivoBloqueoAprobar(sinGuardar: boolean, hayErrores: boolean): string | null {
   if (hayErrores) return 'Corrige los errores de la tabla y guarda antes de aprobar.'
@@ -146,9 +163,9 @@ export function validarAprobacion(calibrada: boolean, nota: string): string | nu
   return null
 }
 
-export function cuerpoAprobacion(calibrada: boolean, nota: string): DatosAprobacion {
+export function cuerpoAprobacion(revision: number, calibrada: boolean, nota: string): DatosAprobacion {
   const limpia = nota.trim()
-  return limpia ? { calibrada, nota: limpia } : { calibrada }
+  return limpia ? { revision, calibrada, nota: limpia } : { revision, calibrada }
 }
 
 /* ---------- Simulador ---------- */
@@ -203,10 +220,17 @@ const MENSAJES_CODIGO: Record<string, string> = {
   SIN_PERMISO_APROBAR: 'Solo un agrónomo validado puede aprobar una regla de zona.',
   REGLA_NO_APROBADA: 'Solo una regla aprobada se puede activar.',
   TRANSICION_INVALIDA: 'La regla cambió de estado y ya no admite esta acción. Vuelve a cargarla.',
-  VERSION_EN_CONFLICTO: 'Otra operación creó la misma versión al mismo tiempo. Inténtalo de nuevo.',
+  VERSION_EN_CONFLICTO: 'Otra persona cambió esta regla al mismo tiempo. Carga la versión guardada e inténtalo de nuevo.',
 }
 
 export type ErrorRegla = { mensaje: string; detalles: string[] }
+
+// 409 VERSION_EN_CONFLICTO al guardar o aprobar: el borrador ya no está en la revisión que se envió
+export function esConflictoRevision(error: unknown): boolean {
+  if (!axios.isAxiosError(error) || error.response?.status !== 409) return false
+  const datos: unknown = error.response.data
+  return !!datos && typeof datos === 'object' && (datos as { codigo?: unknown }).codigo === 'VERSION_EN_CONFLICTO'
+}
 
 // El 403 del guard de roles (p. ej. un admin que intenta aprobar) llega sin código: se usa el mensaje de la acción
 export function mensajeErrorRegla(error: unknown, porDefecto: string, prohibido = 'No tienes permiso para esta acción.'): ErrorRegla {

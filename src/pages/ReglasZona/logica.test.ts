@@ -8,6 +8,8 @@ import {
   agruparPorTipo,
   claveSimulacion,
   cuerpoAprobacion,
+  cuerpoGuardado,
+  esConflictoRevision,
   huellaContenido,
   MAX_FILAS,
   mensajeErrorRegla,
@@ -15,6 +17,7 @@ import {
   parrafosNotas,
   quitarFila,
   resultadoVigente,
+  revisionVista,
   sincronizarEditor,
   textoActivacion,
   validarAprobacion,
@@ -143,9 +146,9 @@ describe('aprobación', () => {
     expect(validarAprobacion(false, '')).toBeNull()
   })
 
-  it('arma el cuerpo sin nota vacía y con la nota recortada', () => {
-    expect(cuerpoAprobacion(false, '  ')).toEqual({ calibrada: false })
-    expect(cuerpoAprobacion(true, ' ok ')).toEqual({ calibrada: true, nota: 'ok' })
+  it('arma el cuerpo con la revisión revisada, sin nota vacía y con la nota recortada', () => {
+    expect(cuerpoAprobacion(4, false, '  ')).toEqual({ revision: 4, calibrada: false })
+    expect(cuerpoAprobacion(4, true, ' ok ')).toEqual({ revision: 4, calibrada: true, nota: 'ok' })
   })
 })
 
@@ -166,6 +169,37 @@ describe('simulador', () => {
   })
 })
 
+describe('revisión del borrador', () => {
+  const filas = [{ orden: 1, sevMax: 100, incMax: 100, radioMinM: 0, radioMaxM: 5 }]
+
+  it('envía la revisión del servidor mientras el editor parte de lo guardado', () => {
+    expect(revisionVista('al-dia', 2, 2)).toBe(2)
+    // Mismo contenido guardado con otra revisión: no hay nada que pisar, vale la nueva
+    expect(revisionVista('al-dia', 2, 3)).toBe(3)
+  })
+
+  it('en conflicto envía la revisión que se vio al cargar, no la que llegó después', () => {
+    expect(revisionVista('conflicto', 2, 5)).toBe(2)
+  })
+
+  it('el guardado lleva la revisión y solo lo que cambió', () => {
+    const base = { filas, notas: 'n' }
+    expect(cuerpoGuardado(7, { ...base, filasCambiaron: false, notasCambiaron: true })).toEqual({ revision: 7, notas: 'n' })
+    expect(cuerpoGuardado(7, { ...base, filasCambiaron: true, notasCambiaron: false })).toEqual({ revision: 7, filas })
+    expect(cuerpoGuardado(7, { filas, notas: null, filasCambiaron: true, notasCambiaron: true })).toEqual({ revision: 7, filas, notas: null })
+  })
+
+  it('reconoce el 409 VERSION_EN_CONFLICTO y no lo confunde con otros errores', () => {
+    const error = (status: number, data: unknown) => ({ isAxiosError: true, response: { status, data } })
+    expect(esConflictoRevision(error(409, { codigo: 'VERSION_EN_CONFLICTO' }))).toBe(true)
+    expect(esConflictoRevision(error(409, { codigo: 'REGLA_INMUTABLE' }))).toBe(false)
+    expect(esConflictoRevision(error(500, { codigo: 'VERSION_EN_CONFLICTO' }))).toBe(false)
+    expect(esConflictoRevision(error(409, null))).toBe(false)
+    expect(esConflictoRevision(new Error('VERSION_EN_CONFLICTO'))).toBe(false)
+    expect(esConflictoRevision(null)).toBe(false)
+  })
+})
+
 describe('mensajes de error del API', () => {
   const errorAxios = (status: number, data: unknown) => ({ isAxiosError: true, response: { status, data } })
 
@@ -175,7 +209,7 @@ describe('mensajes de error del API', () => {
     ['REGLA_NO_APROBADA', 409, 'Solo una regla aprobada se puede activar.'],
     ['TRANSICION_INVALIDA', 409, 'ya no admite esta acción'],
     ['REGLA_NO_ENCONTRADA', 404, 'La regla ya no existe'],
-    ['VERSION_EN_CONFLICTO', 409, 'Inténtalo de nuevo'],
+    ['VERSION_EN_CONFLICTO', 409, 'Carga la versión guardada e inténtalo de nuevo'],
   ])('traduce %s', (codigo, status, texto) => {
     expect(mensajeErrorRegla(errorAxios(status, { codigo, mensaje: 'x' }), 'def').mensaje).toContain(texto)
   })
@@ -198,7 +232,7 @@ describe('mensajes de error del API', () => {
 
 describe('lista e historial', () => {
   const regla = (tipo: string, version: number, estado: EstadoRegla): ReglaZona => ({
-    id: `${tipo}-${version}`, tipoEnfermedad: tipo, version, estado, calibrada: false, notas: null, filas: EJEMPLO,
+    id: `${tipo}-${version}`, tipoEnfermedad: tipo, version, revision: 1, estado, calibrada: false, notas: null, filas: EJEMPLO,
     creadaPor: null, creadaEn: '2026-01-01T00:00:00Z', aprobadaPor: null, aprobadaEn: null, activadaEn: null,
   })
 

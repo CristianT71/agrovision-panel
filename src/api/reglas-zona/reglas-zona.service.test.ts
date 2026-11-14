@@ -15,14 +15,14 @@ describe('servicio de reglas de zona contra el contrato', () => {
     expect(get).toHaveBeenNthCalledWith(2, '/reglas-zona', { params: {}, signal: undefined })
   })
 
-  it('crea con POST y edita con PATCH solo notas y filas', async () => {
+  it('crea con POST y edita con PATCH la revisión vista más notas y filas', async () => {
     const post = vi.spyOn(api, 'post').mockResolvedValue({ data: {} })
     const patch = vi.spyOn(api, 'patch').mockResolvedValue({ data: {} })
     const filas = [{ orden: 1, sevMax: 100, incMax: 100, radioMinM: 0, radioMaxM: 5 }]
     await reglasZonaService.crear({ tipoEnfermedad: 'roya', notas: null, filas })
-    await reglasZonaService.editar(id, { filas })
+    await reglasZonaService.editar(id, { revision: 3, filas })
     expect(post).toHaveBeenCalledWith('/reglas-zona', { tipoEnfermedad: 'roya', notas: null, filas })
-    expect(patch).toHaveBeenCalledWith(`/reglas-zona/${id}`, { filas })
+    expect(patch).toHaveBeenCalledWith(`/reglas-zona/${id}`, { revision: 3, filas })
   })
 
   it.each(['duplicar', 'activar', 'archivar'] as const)('%s usa POST /reglas-zona/:id/%s sin cuerpo', async (accion) => {
@@ -33,9 +33,9 @@ describe('servicio de reglas de zona contra el contrato', () => {
 
   it('aprueba y simula con los cuerpos del contrato', async () => {
     const post = vi.spyOn(api, 'post').mockResolvedValue({ data: {} })
-    await reglasZonaService.aprobar(id, { calibrada: true, nota: 'Validada en campo' })
+    await reglasZonaService.aprobar(id, { revision: 3, calibrada: true, nota: 'Validada en campo' })
     await reglasZonaService.simular(id, { severidadPct: 70, incidenciaPct: 55, plantasPorHa: 5000 })
-    expect(post).toHaveBeenNthCalledWith(1, `/reglas-zona/${id}/aprobar`, { calibrada: true, nota: 'Validada en campo' })
+    expect(post).toHaveBeenNthCalledWith(1, `/reglas-zona/${id}/aprobar`, { revision: 3, calibrada: true, nota: 'Validada en campo' })
     expect(post).toHaveBeenNthCalledWith(2, `/reglas-zona/${id}/simular`, { severidadPct: 70, incidenciaPct: 55, plantasPorHa: 5000 })
   })
 

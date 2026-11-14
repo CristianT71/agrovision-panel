@@ -22,6 +22,8 @@ export interface ReglaZona {
   id: string
   tipoEnfermedad: string
   version: number
+  // Contador de cambios del borrador: se devuelve al guardar o aprobar para detectar ediciones simultáneas
+  revision: number
   estado: EstadoRegla
   calibrada: boolean
   // La nota de aprobación no tiene campo propio: llega aquí con el prefijo "Nota de calibración:" o "Nota de aprobación:"
@@ -45,13 +47,17 @@ export interface NuevaRegla {
   filas: FilaRegla[]
 }
 
-// PATCH solo acepta notas y filas: el tipo de enfermedad no cambia después de crear
+// PATCH solo acepta notas y filas: el tipo de enfermedad no cambia después de crear.
+// revision es la que se vio al cargar: si el borrador cambió después, el API responde 409 VERSION_EN_CONFLICTO
 export interface CambiosRegla {
+  revision: number
   notas?: string | null
   filas?: FilaRegla[]
 }
 
 export interface DatosAprobacion {
+  // Revisión que el agrónomo revisó: se aprueba esa o ninguna
+  revision: number
   calibrada: boolean
   nota?: string
 }
