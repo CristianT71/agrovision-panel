@@ -89,6 +89,30 @@ export function validarTipo(tipo: string): string | null {
     : 'El tipo debe tener entre 2 y 50 caracteres: minúsculas, dígitos, "-" o "_" (p. ej. "roya").'
 }
 
+/* ---------- Editor frente a lo guardado ---------- */
+
+// Huellas comparables: la tabla tal como la entiende el API y las notas (vacías = sin notas)
+export const huellaFilas = (filas: readonly FilaRegla[]) => JSON.stringify(aFilas(aEditables(filas)))
+export const huellaContenido = (filas: readonly FilaRegla[], notas: string | null) =>
+  JSON.stringify([huellaFilas(filas), notas?.trim() ? notas : ''])
+
+// base: lo guardado de lo que partió el editor; servidor: lo que llega ahora; local: lo que hay en el editor.
+// adoptar = el editor ya coincide con lo nuevo; recargar = el editor estaba limpio; conflicto = estaba modificado.
+export type Sincronizacion = 'al-dia' | 'adoptar' | 'recargar' | 'conflicto'
+export function sincronizarEditor(base: string, servidor: string, local: string): Sincronizacion {
+  if (servidor === base) return 'al-dia'
+  if (local === servidor) return 'adoptar'
+  if (local === base) return 'recargar'
+  return 'conflicto'
+}
+
+// El API aprueba la tabla guardada: no se aprueba lo que no se ve guardado
+export function motivoBloqueoAprobar(sinGuardar: boolean, hayErrores: boolean): string | null {
+  if (hayErrores) return 'Corrige los errores de la tabla y guarda antes de aprobar.'
+  if (sinGuardar) return 'Guarda los cambios antes de aprobar: se aprueba la tabla guardada.'
+  return null
+}
+
 /* ---------- Acciones por rol y estado ---------- */
 
 export type Acciones = {
@@ -147,6 +171,28 @@ export const cuerpoSimulacion = (e: EntradaSimulacion) => ({
   incidenciaPct: aNumero(e.incidencia),
   plantasPorHa: aNumero(e.plantas),
 })
+
+// Con qué entradas y qué tabla guardada se calculó un resultado
+export type ClaveSimulacion = { entrada: string; tabla: string }
+export const claveSimulacion = (e: EntradaSimulacion, filas: readonly FilaRegla[]): ClaveSimulacion => ({
+  entrada: JSON.stringify(cuerpoSimulacion(e)),
+  tabla: huellaFilas(filas),
+})
+
+// El resultado solo vale para las entradas y la tabla guardada con que se pidió, y si el editor no tiene cambios
+export const resultadoVigente = (usada: ClaveSimulacion | null, actual: ClaveSimulacion, sinGuardar: boolean) =>
+  !sinGuardar && usada !== null && usada.entrada === actual.entrada && usada.tabla === actual.tabla
+
+/* ---------- Activación ---------- */
+
+// activa: undefined mientras se consulta; null si no hay ninguna activa del tipo
+export function textoActivacion(regla: ReglaZona, activa: ReglaZona | null | undefined, error: boolean): string {
+  const tipo = regla.tipoEnfermedad
+  if (error) return `No se pudo comprobar la regla activa de ${tipo}: si hay una, quedará archivada y la app empezará a usar esta.`
+  if (activa === undefined) return `Comprobando la regla activa de ${tipo}…`
+  if (activa && activa.id !== regla.id) return `La versión v${activa.version} de ${tipo} quedará archivada y la app empezará a usar esta.`
+  return `No hay otra regla activa de ${tipo}: la app empezará a usar esta.`
+}
 
 /* ---------- Errores del API ---------- */
 

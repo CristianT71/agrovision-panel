@@ -6,11 +6,17 @@ import {
   aFilas,
   agregarFila,
   agruparPorTipo,
+  claveSimulacion,
   cuerpoAprobacion,
+  huellaContenido,
   MAX_FILAS,
   mensajeErrorRegla,
+  motivoBloqueoAprobar,
   parrafosNotas,
   quitarFila,
+  resultadoVigente,
+  sincronizarEditor,
+  textoActivacion,
   validarAprobacion,
   validarFilas,
   validarSimulacion,
@@ -82,6 +88,33 @@ describe('editor de filas', () => {
   })
 })
 
+describe('editor frente a lo guardado', () => {
+  const guardada = huellaContenido(EJEMPLO, 'notas')
+
+  it('la huella ignora el orden de llegada y trata notas vacías como sin notas', () => {
+    expect(huellaContenido([...EJEMPLO].reverse(), 'notas')).toBe(guardada)
+    expect(huellaContenido(aFilas(aEditables(EJEMPLO)), 'notas')).toBe(guardada)
+    expect(huellaContenido(EJEMPLO, '   ')).toBe(huellaContenido(EJEMPLO, null))
+    expect(huellaContenido(con(0, { radioMaxM: 4 }), 'notas')).not.toBe(guardada)
+  })
+
+  it('sincroniza el editor limpio, avisa del conflicto si está modificado y adopta lo propio ya guardado', () => {
+    const otra = huellaContenido(con(0, { radioMaxM: 4 }), 'notas')
+    const mia = huellaContenido(con(1, { radioMaxM: 9 }), 'notas')
+    expect(sincronizarEditor(guardada, guardada, mia)).toBe('al-dia')
+    expect(sincronizarEditor(guardada, otra, guardada)).toBe('recargar')
+    expect(sincronizarEditor(guardada, otra, mia)).toBe('conflicto')
+    expect(sincronizarEditor(guardada, mia, mia)).toBe('adoptar')
+  })
+
+  it('no deja aprobar con cambios sin guardar ni con errores', () => {
+    expect(motivoBloqueoAprobar(false, false)).toBeNull()
+    expect(motivoBloqueoAprobar(true, false)).toContain('Guarda los cambios antes de aprobar')
+    expect(motivoBloqueoAprobar(true, true)).toContain('Corrige los errores')
+    expect(motivoBloqueoAprobar(false, true)).toContain('Corrige los errores')
+  })
+})
+
 describe('visibilidad de botones por rol y estado', () => {
   const casos: [EstadoRegla, 'profesional' | 'administrador', Record<string, boolean>][] = [
     ['borrador', 'profesional', { editar: true, eliminar: true, duplicar: true, aprobar: true, activar: false, archivar: false }],
@@ -120,6 +153,16 @@ describe('simulador', () => {
   it('valida los rangos del DTO', () => {
     expect(validarSimulacion({ severidad: '70', incidencia: '55', plantas: '5000' })).toEqual([])
     expect(validarSimulacion({ severidad: '', incidencia: '101', plantas: '0' })).toHaveLength(3)
+  })
+
+  it('el resultado vale solo para las entradas y la tabla guardada con que se pidió', () => {
+    const entrada = { severidad: '70', incidencia: '55', plantas: '5000' }
+    const usada = claveSimulacion(entrada, EJEMPLO)
+    expect(resultadoVigente(usada, claveSimulacion({ ...entrada, severidad: '70.0' }, [...EJEMPLO].reverse()), false)).toBe(true)
+    expect(resultadoVigente(usada, claveSimulacion({ ...entrada, severidad: '71' }, EJEMPLO), false)).toBe(false)
+    expect(resultadoVigente(usada, claveSimulacion(entrada, con(3, { radioMaxM: 40 })), false)).toBe(false)
+    expect(resultadoVigente(usada, usada, true)).toBe(false)
+    expect(resultadoVigente(null, usada, false)).toBe(false)
   })
 })
 
@@ -165,6 +208,14 @@ describe('lista e historial', () => {
     expect(grupos[1].reglas.map((r) => r.version)).toEqual([3, 2, 1])
     expect(grupos[1].activa?.version).toBe(2)
     expect(grupos[0].activa).toBeNull()
+  })
+
+  it('la confirmación de activar nombra la activa consultada, no la de la lista filtrada', () => {
+    const nueva = regla('roya', 3, 'aprobada')
+    expect(textoActivacion(nueva, regla('roya', 2, 'activa'), false)).toBe('La versión v2 de roya quedará archivada y la app empezará a usar esta.')
+    expect(textoActivacion(nueva, null, false)).toBe('No hay otra regla activa de roya: la app empezará a usar esta.')
+    expect(textoActivacion(nueva, undefined, false)).toBe('Comprobando la regla activa de roya…')
+    expect(textoActivacion(nueva, undefined, true)).toContain('No se pudo comprobar la regla activa de roya')
   })
 
   it('muestra la nota de aprobación dentro de las notas, resaltada', () => {

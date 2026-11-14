@@ -16,6 +16,15 @@ export const useReglas = (filtros: FiltrosReglas) =>
     queryFn: ({ signal }) => reglasZonaService.listar(filtros, signal),
   })
 
+// La activa del tipo se consulta aparte (y de nuevo al montar): la lista puede estar filtrada sin incluirla
+export const useReglaActiva = (tipo: string) =>
+  useQuery({
+    queryKey: clavesReglasZona.lista({ tipo, estado: 'activa' }),
+    queryFn: ({ signal }) => reglasZonaService.listar({ tipo, estado: 'activa' }, signal),
+    refetchOnMount: 'always',
+    select: (reglas) => reglas.find((r) => r.tipoEnfermedad === tipo && r.estado === 'activa') ?? null,
+  })
+
 // Cualquier cambio de estado puede tocar otras versiones (activar archiva la activa anterior): se recarga todo
 function useMutacionRegla<V>(mutationFn: (variables: V) => Promise<ReglaZona | undefined>) {
   const queryClient = useQueryClient()

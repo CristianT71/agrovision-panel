@@ -18,6 +18,8 @@ export default function DialogoAprobar({ regla, cerrar }: Props) {
 
   const errorLocal = validarAprobacion(calibrada, nota)
   const noValidado = perfil.data !== undefined && perfil.data.estado !== 'activo'
+  // Sin perfil cargado y activo no se envía (el API sigue siendo quien autoriza)
+  const puedeEnviar = perfil.data?.estado === 'activo' && !errorLocal && !aprobar.isPending
   const salir = () => { if (!aprobar.isPending) cerrar() }
 
   return (
@@ -26,7 +28,7 @@ export default function DialogoAprobar({ regla, cerrar }: Props) {
         className="space-y-4"
         onSubmit={(e) => {
           e.preventDefault()
-          if (!errorLocal && !aprobar.isPending) aprobar.mutate(cuerpoAprobacion(calibrada, nota), { onSuccess: cerrar })
+          if (puedeEnviar) aprobar.mutate(cuerpoAprobacion(calibrada, nota), { onSuccess: cerrar })
         }}
       >
         <div className="rounded-xl bg-gray-50 px-4 py-3 text-sm">
@@ -72,7 +74,7 @@ export default function DialogoAprobar({ regla, cerrar }: Props) {
 
         <div className="flex justify-end gap-2 border-t border-gray-100 pt-4">
           <button type="button" className={BOTON} onClick={salir} disabled={aprobar.isPending}>Cancelar</button>
-          <button type="submit" className={PRIMARIO} disabled={Boolean(errorLocal) || aprobar.isPending}>
+          <button type="submit" className={PRIMARIO} disabled={!puedeEnviar}>
             {aprobar.isPending ? 'Aprobando…' : 'Aprobar'}
           </button>
         </div>

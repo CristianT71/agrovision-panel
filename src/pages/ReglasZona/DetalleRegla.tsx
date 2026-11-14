@@ -1,20 +1,30 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import type { Rol } from '../../api/auth/session'
 import type { ReglaZona } from '../../api/reglas-zona/reglas-zona.service'
 import { formatearFechaHora } from '../../utils/fechas'
 import DialogoAprobar from './DialogoAprobar'
 import DialogoConfirmar from './DialogoConfirmar'
 import EditorFilas from './EditorFilas'
-import { accionesDisponibles, aEditables, aFilas, MAX_NOTAS, mensajeErrorRegla, parrafosNotas, validarFilas } from './logica'
+import {
+  accionesDisponibles,
+  aEditables,
+  aFilas,
+  huellaContenido,
+  MAX_NOTAS,
+  mensajeErrorRegla,
+  motivoBloqueoAprobar,
+  parrafosNotas,
+  sincronizarEditor,
+  textoActivacion,
+  validarFilas,
+} from './logica'
 import Simulador from './Simulador'
-import { useActivarRegla, useArchivarRegla, useDuplicarRegla, useEditarRegla, useEliminarRegla } from './useReglasZona'
+import { useActivarRegla, useArchivarRegla, useDuplicarRegla, useEditarRegla, useEliminarRegla, useReglaActiva } from './useReglasZona'
 import { AvisoSinCalibrar, BOTON, CAMPO, EstadoBadge, MensajeError, PRIMARIO } from './ui'
 
 type Props = {
   regla: ReglaZona
   rol: Rol | null
-  // Regla activa del mismo tipo (puede ser esta misma)
-  activaActual: ReglaZona | null
   seleccionar: (id: string | null) => void
 }
 
@@ -22,12 +32,21 @@ type Confirmacion = 'activar' | 'archivar' | 'eliminar' | 'aprobar' | null
 
 const fecha = (iso: string | null) => (iso ? formatearFechaHora(iso) : '—')
 
+// Se monta al abrir la confirmación: consulta la activa del tipo sin depender del filtro de la lista
+function ConsecuenciaActivacion({ regla }: { regla: ReglaZona }) {
+  const activa = useReglaActiva(regla.tipoEnfermedad)
+  return <p>{textoActivacion(regla, activa.data, activa.isError && activa.data === undefined)}</p>
+}
+
 // Se monta con key={regla.id}: el estado del editor se reinicia al cambiar de regla
-export default function DetalleRegla({ regla, rol, activaActual, seleccionar }: Props) {
+export default function DetalleRegla({ regla, rol, seleccionar }: Props) {
   const acciones = accionesDisponibles(rol, regla.estado)
   const [filas, setFilas] = useState(() => aEditables(regla.filas))
   const [notas, setNotas] = useState(regla.notas ?? '')
   const [dialogo, setDialogo] = useState<Confirmacion>(null)
+  // Huella de lo guardado de lo que partió el editor: detecta recargas de la misma regla
+  const [base, setBase] = useState(() => huellaContenido(regla.filas, regla.notas))
+  const idNotas = useId()
 
   const editar = useEditarRegla(regla.id)
   const duplicar = useDuplicarRegla(regla.id)
@@ -42,6 +61,20 @@ export default function DetalleRegla({ regla, rol, activaActual, seleccionar }: 
   const notasCambiaron = (notasNuevas ?? '') !== (regla.notas ?? '')
   const ocupado = editar.isPending || duplicar.isPending
 
+  // Llegan datos nuevos de esta regla: editor limpio -> se recarga; modificado -> se avisa del conflicto
+  const servidor = huellaContenido(regla.filas, regla.notas)
+  const local = huellaContenido(filasNuevas, notasNuevas)
+  const sincronizacion = acciones.editar ? sincronizarEditor(base, servidor, local) : 'al-dia'
+  const recargar = () => {
+    setFilas(aEditables(regla.filas))
+    setNotas(regla.notas ?? '')
+    setBase(servidor)
+  }
+  if (sincronizacion === 'recargar') recargar()
+  else if (sincronizacion === 'adoptar') setBase(servidor)
+  const sinGuardar = acciones.editar && local !== servidor
+  const bloqueoAprobar = motivoBloqueoAprobar(sinGuardar, errores.length > 0)
+
   const guardar = () => {
     if (errores.length > 0 || editar.isPending) return
     editar.mutate({ ...(filasCambiaron ? { filas: filasNuevas } : {}), ...(notasCambiaron ? { notas: notasNuevas } : {}) })
@@ -50,8 +83,6 @@ export default function DetalleRegla({ regla, rol, activaActual, seleccionar }: 
     activar.reset(); archivar.reset(); eliminar.reset()
     setDialogo(null)
   }
-  const otraActiva = activaActual && activaActual.id !== regla.id ? activaActual : null
-
   return (
     <div className="space-y-4">
       <section className="space-y-4 rounded-2xl bg-white p-5">
@@ -69,7 +100,17 @@ export default function DetalleRegla({ regla, rol, activaActual, seleccionar }: 
                 {duplicar.isPending ? 'Duplicando…' : 'Duplicar'}
               </button>
             )}
-            {acciones.aprobar && <button type="button" className={PRIMARIO} disabled={ocupado} onClick={() => setDialogo('aprobar')}>Aprobar</button>}
+            {acciones.aprobar && (
+              <button
+                type="button"
+                className={PRIMARIO}
+                disabled={ocupado || bloqueoAprobar !== null}
+                title={bloqueoAprobar ?? undefined}
+                onClick={() => { if (!ocupado && !bloqueoAprobar) setDialogo('aprobar') }}
+              >
+                Aprobar
+              </button>
+            )}
             {acciones.activar && <button type="button" className={PRIMARIO} onClick={() => setDialogo('activar')}>Activar</button>}
             {acciones.archivar && <button type="button" className={BOTON} onClick={() => setDialogo('archivar')}>Archivar</button>}
             {acciones.eliminar && (
@@ -81,6 +122,12 @@ export default function DetalleRegla({ regla, rol, activaActual, seleccionar }: 
         </header>
 
         {!regla.calibrada && <AvisoSinCalibrar />}
+        {sincronizacion === 'conflicto' && (
+          <div role="alert" className="space-y-2 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <p>Esta regla cambió mientras la editabas. Si guardas, tus cambios reemplazarán los guardados.</p>
+            <button type="button" className={BOTON} onClick={recargar}>Descartar mis cambios y cargar la versión guardada</button>
+          </div>
+        )}
         {duplicar.isError && <MensajeError error={mensajeErrorRegla(duplicar.error, 'No se pudo duplicar la regla.')} />}
 
         <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
@@ -100,7 +147,7 @@ export default function DetalleRegla({ regla, rol, activaActual, seleccionar }: 
           ) : (
             <>
               <p className="mb-2 text-xs text-gray-500">Solo lectura: duplica la regla para crear una nueva versión editable.</p>
-              <EditorFilas filas={filas} />
+              <EditorFilas filas={aEditables(regla.filas)} />
             </>
           )}
           {errores.length > 0 && (
@@ -111,9 +158,9 @@ export default function DetalleRegla({ regla, rol, activaActual, seleccionar }: 
         </div>
 
         <div>
-          <h3 className="mb-2 font-semibold text-gray-900">Notas</h3>
+          <h3 className="mb-2 font-semibold text-gray-900">{acciones.editar ? <label htmlFor={idNotas}>Notas</label> : 'Notas'}</h3>
           {acciones.editar ? (
-            <textarea value={notas} rows={4} maxLength={MAX_NOTAS} disabled={editar.isPending} onChange={(e) => setNotas(e.target.value)} className={CAMPO} />
+            <textarea id={idNotas} value={notas} rows={4} maxLength={MAX_NOTAS} disabled={editar.isPending} onChange={(e) => setNotas(e.target.value)} className={CAMPO} />
           ) : parrafosNotas(regla.notas).length === 0 ? (
             <p className="text-sm text-gray-400">Sin notas.</p>
           ) : (
@@ -133,12 +180,13 @@ export default function DetalleRegla({ regla, rol, activaActual, seleccionar }: 
               {editar.isPending ? 'Guardando…' : 'Guardar'}
             </button>
             {editar.isSuccess && !filasCambiaron && !notasCambiaron && <span role="status" className="text-sm text-green-700">Cambios guardados.</span>}
+            {acciones.aprobar && bloqueoAprobar && <span className="text-sm text-gray-500">{bloqueoAprobar}</span>}
           </div>
         )}
         {editar.isError && <MensajeError error={mensajeErrorRegla(editar.error, 'No se pudo guardar la regla.')} />}
       </section>
 
-      <Simulador regla={regla} />
+      <Simulador regla={regla} sinGuardar={sinGuardar} />
 
       {dialogo === 'aprobar' && <DialogoAprobar regla={regla} cerrar={() => setDialogo(null)} />}
       {dialogo === 'activar' && (
@@ -151,11 +199,7 @@ export default function DetalleRegla({ regla, rol, activaActual, seleccionar }: 
           cerrar={cerrarDialogo}
         >
           <p className="font-medium">Esto reemplaza la regla activa actual.</p>
-          <p>
-            {otraActiva
-              ? `La versión v${otraActiva.version} de ${regla.tipoEnfermedad} quedará archivada y la app empezará a usar esta.`
-              : `No hay otra regla activa de ${regla.tipoEnfermedad}: la app empezará a usar esta.`}
-          </p>
+          <ConsecuenciaActivacion regla={regla} />
           {!regla.calibrada && <AvisoSinCalibrar />}
         </DialogoConfirmar>
       )}

@@ -21,7 +21,6 @@ export default function ReglasZona() {
   const grupos = agruparPorTipo(reglas.data ?? [])
   const idSeleccionado = seleccion ?? grupos[0]?.reglas[0]?.id ?? null
   const seleccionada = reglas.data?.find((r) => r.id === idSeleccionado) ?? null
-  const grupoSeleccionado = grupos.find((g) => g.tipo === seleccionada?.tipoEnfermedad)
 
   const filtrar = (e: FormEvent) => {
     e.preventDefault()
@@ -98,7 +97,6 @@ export default function ReglasZona() {
               key={seleccionada.id}
               regla={seleccionada}
               rol={rol}
-              activaActual={grupoSeleccionado?.activa ?? null}
               seleccionar={setSeleccion}
             />
           ) : (

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useState } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { QueryClient, QueryClientProvider, useMutation } from '@tanstack/react-query'
-import { clavesAgronomos, type PerfilAgronomo } from '../../api/agronomos/agronomos.service'
+import { agronomosService, clavesAgronomos, type PerfilAgronomo } from '../../api/agronomos/agronomos.service'
 import { reglasZonaService, type ReglaZona } from '../../api/reglas-zona/reglas-zona.service'
 import DialogoAprobar from './DialogoAprobar'
 
@@ -66,9 +66,19 @@ describe('diálogo de aprobación', () => {
     expect(botonAprobar(html)).not.toContain('disabled=""')
   })
 
-  it('avisa si la cuenta del agrónomo no está validada', () => {
+  it('avisa y bloquea el envío si la cuenta del agrónomo no está validada', () => {
     cliente.setQueryData(clavesAgronomos.miPerfil, { ...perfil, estado: 'pendiente' })
-    expect(dialogo()).toContain('Tu cuenta aún no está validada')
+    const html = dialogo()
+    expect(html).toContain('Tu cuenta aún no está validada')
+    expect(botonAprobar(html)).toContain('disabled=""')
+  })
+
+  it('bloquea el envío mientras el perfil no está cargado', () => {
+    cliente.removeQueries({ queryKey: clavesAgronomos.miPerfil })
+    vi.spyOn(agronomosService, 'miPerfil').mockReturnValue(new Promise(() => {}))
+    const html = dialogo()
+    expect(html).toContain('Cargando tus datos…')
+    expect(botonAprobar(html)).toContain('disabled=""')
   })
 
   it('envía el cuerpo del contrato y muestra un mensaje claro ante el 403 sin código del guard de roles', async () => {
