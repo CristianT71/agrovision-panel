@@ -247,20 +247,6 @@ export function mensajeErrorRegla(error: unknown, porDefecto: string, prohibido 
 
 /* ---------- Lista e historial ---------- */
 
-export type GrupoReglas = { tipo: string; reglas: ReglaZona[]; activa: ReglaZona | null }
-
-// Una tarjeta por tipo de enfermedad con su historial de versiones, de la más nueva a la más vieja
-export function agruparPorTipo(reglas: readonly ReglaZona[]): GrupoReglas[] {
-  const grupos = new Map<string, ReglaZona[]>()
-  for (const r of reglas) grupos.set(r.tipoEnfermedad, [...(grupos.get(r.tipoEnfermedad) ?? []), r])
-  return [...grupos.entries()]
-    .sort(([a], [b]) => a.localeCompare(b, 'es'))
-    .map(([tipo, lista]) => {
-      const ordenadas = [...lista].sort((a, b) => b.version - a.version)
-      return { tipo, reglas: ordenadas, activa: ordenadas.find((r) => r.estado === 'activa') ?? null }
-    })
-}
-
 // Separa los párrafos de las notas para resaltar la nota que dejó el agrónomo al aprobar
 export function parrafosNotas(notas: string | null): { texto: string; deAprobacion: boolean }[] {
   if (!notas?.trim()) return []

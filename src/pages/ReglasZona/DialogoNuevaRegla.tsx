@@ -29,7 +29,7 @@ export default function DialogoNuevaRegla({ cerrar, creada }: Props) {
   }
 
   return (
-    <Dialogo titulo="Nueva regla de zona (borrador)" cerrar={salir} ancho="max-w-3xl">
+    <Dialogo titulo="Nueva regla de zona (borrador)" cerrar={salir} etiquetaVolver="Cancelar" ancho="max-w-3xl">
       <form onSubmit={enviar} className="space-y-4">
         <label className="block text-sm text-gray-600">
           Tipo de enfermedad

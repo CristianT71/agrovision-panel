@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useId, useRef, type ReactNode } from 'react'
 import type { EstadoRegla } from '../../api/reglas-zona/reglas-zona.service'
 import { ETIQUETA_ESTADO, type ErrorRegla } from './logica'
 
@@ -39,8 +39,9 @@ export function MensajeError({ error }: { error: ErrorRegla }) {
 }
 
 // Diálogo nativo (como EliminarFichaModal): sin portal, se puede renderizar en las pruebas SSR
-export function Dialogo({ titulo, cerrar, children, ancho = 'max-w-md' }: { titulo: string; cerrar: () => void; children: ReactNode; ancho?: string }) {
+export function Dialogo({ titulo, cerrar, children, ancho = 'max-w-md', cerrarAlClicFuera = false, etiquetaVolver = 'Cerrar' }: { titulo: string; cerrar: () => void; children: ReactNode; ancho?: string; cerrarAlClicFuera?: boolean; etiquetaVolver?: string }) {
   const dialogo = useRef<HTMLDialogElement>(null)
+  const idTitulo = useId()
   useEffect(() => {
     const elemento = dialogo.current
     elemento?.showModal()
@@ -49,12 +50,22 @@ export function Dialogo({ titulo, cerrar, children, ancho = 'max-w-md' }: { titu
   return (
     <dialog
       ref={dialogo}
-      aria-label={titulo}
-      onCancel={(e) => { e.preventDefault(); cerrar() }}
-      className={`fixed inset-0 m-auto max-h-[90vh] w-[calc(100%-2rem)] ${ancho} overflow-y-auto rounded-2xl border-0 bg-white p-6 text-gray-900 shadow-2xl backdrop:bg-black/30 backdrop:backdrop-blur-sm`}
+      aria-labelledby={idTitulo}
+      // El evento cancel de React sube por el árbol: sin esta guarda, Escape en un diálogo hijo cerraría también al padre
+      onCancel={(e) => { e.preventDefault(); if (e.target === e.currentTarget) cerrar() }}
+      // El <dialog> no tiene padding propio: solo el fondo (::backdrop) llega con target === currentTarget
+      onClick={cerrarAlClicFuera ? (e) => { if (e.target === e.currentTarget) cerrar() } : undefined}
+      className={`fixed inset-0 m-auto max-h-[90vh] w-[calc(100%-2rem)] ${ancho} overflow-y-auto rounded-2xl border-0 bg-white p-0 text-gray-900 shadow-2xl backdrop:bg-black/30 backdrop:backdrop-blur-sm`}
     >
-      <h2 className="mb-4 text-xl font-bold text-gray-900">{titulo}</h2>
-      {children}
+      <div className="p-6">
+        <div className="mb-4 flex items-center gap-3">
+          <button type="button" onClick={cerrar} aria-label={etiquetaVolver} title={etiquetaVolver} className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900">
+            <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /><path d="M20 12H9" /></svg>
+          </button>
+          <h2 id={idTitulo} className="text-xl font-bold text-gray-900">{titulo}</h2>
+        </div>
+        {children}
+      </div>
     </dialog>
   )
 }

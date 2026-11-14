@@ -27,7 +27,7 @@ export default function DialogoAprobar({ regla, cerrar }: Props) {
   const salir = () => { if (!aprobar.isPending) cerrar() }
 
   return (
-    <Dialogo titulo={`Aprobar ${regla.tipoEnfermedad} v${regla.version}`} cerrar={salir}>
+    <Dialogo titulo={`Aprobar ${regla.tipoEnfermedad} v${regla.version}`} cerrar={salir} etiquetaVolver="Cancelar">
       <form
         className="space-y-4"
         onSubmit={(e) => {

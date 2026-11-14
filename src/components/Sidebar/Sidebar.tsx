@@ -50,6 +50,14 @@ const iconRadar = (
   </svg>
 )
 
+const iconChatbot = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-5 w-5">
+    <path d="M12 3v3M3 11v4M21 11v4" strokeLinecap="round" />
+    <path d="M7 6h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-6l-4 3v-3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z" strokeLinejoin="round" />
+    <path d="M9 11v1M15 11v1M9 15h6" strokeLinecap="round" />
+  </svg>
+)
+
 const iconMap = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-5 w-5">
     <path d="M9 4L3 6.5v13L9 17l6 3 6-2.5v-13L15 7 9 4Z" strokeLinejoin="round" />
@@ -81,7 +89,7 @@ const ITEMS_ADMIN: Item[] = [
   { to: '/modelos', label: 'Modelos IA', icon: iconChip },
   { to: '/detecciones', label: 'Monitor de detecciones', icon: iconRadar },
   { to: '/mapa', label: 'Mapa de casos', icon: iconMap },
-  { to: '/vuelos', label: 'Vuelos de dron', icon: iconRadar },
+  { to: '/vuelos', label: 'IA y análisis multiespectral', icon: iconChatbot },
   ITEM_REGLAS_ZONA,
   { to: '/cuentas', label: 'Cuentas', icon: iconUsers },
 ]

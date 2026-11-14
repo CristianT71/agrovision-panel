@@ -16,7 +16,7 @@ type Props = {
 export default function DialogoConfirmar({ titulo, children, textoConfirmar, peligro = false, pendiente, error, confirmar, cerrar }: Props) {
   const salir = () => { if (!pendiente) cerrar() }
   return (
-    <Dialogo titulo={titulo} cerrar={salir}>
+    <Dialogo titulo={titulo} cerrar={salir} etiquetaVolver="Cancelar">
       <div className="space-y-4 text-sm text-gray-700">
         {children}
         {error && <MensajeError error={error} />}

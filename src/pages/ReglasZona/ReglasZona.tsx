@@ -1,12 +1,12 @@
-import { useState, type FormEvent } from 'react'
+import { useCallback, useRef, useState, type FormEvent } from 'react'
 import { obtenerSesion } from '../../api/auth/session'
 import { ESTADOS_REGLA, type EstadoRegla, type FiltrosReglas } from '../../api/reglas-zona/reglas-zona.service'
 import { formatearFecha } from '../../utils/fechas'
 import DetalleRegla from './DetalleRegla'
 import DialogoNuevaRegla from './DialogoNuevaRegla'
-import { agruparPorTipo, ETIQUETA_ESTADO, mensajeErrorRegla } from './logica'
+import { ETIQUETA_ESTADO, mensajeErrorRegla } from './logica'
 import { useReglas } from './useReglasZona'
-import { BOTON, CAMPO, EstadoBadge, MensajeError, PRIMARIO } from './ui'
+import { BOTON, CAMPO, Dialogo, EstadoBadge, MensajeError, PRIMARIO } from './ui'
 
 // Reglas de zona (admin y agrónomo): tabla versionada severidad/incidencia -> radio de la zona afectada
 export default function ReglasZona() {
@@ -18,9 +18,22 @@ export default function ReglasZona() {
   const [nueva, setNueva] = useState(false)
   const reglas = useReglas(filtros)
 
-  const grupos = agruparPorTipo(reglas.data ?? [])
-  const idSeleccionado = seleccion ?? grupos[0]?.reglas[0]?.id ?? null
-  const seleccionada = reglas.data?.find((r) => r.id === idSeleccionado) ?? null
+  const lista = reglas.data ?? []
+  const idSeleccionado = seleccion
+  const seleccionada = seleccion ? lista.find((r) => r.id === seleccion) ?? null : null
+  const sinGuardar = useRef(false)
+  const avisarSinGuardar = useCallback((valor: boolean) => { sinGuardar.current = valor }, [])
+  const cerrarDetalle = () => {
+    if (sinGuardar.current && !window.confirm('Tienes cambios sin guardar en esta regla. ¿Cerrar y descartarlos?')) return
+    setSeleccion(null)
+  }
+
+  // La selección ya no está en la lista (filtro que la excluye o regla eliminada): quita el filtro o suelta la selección
+  // (se ajusta durante el render, protegido por la condición, para no usar setState dentro de un efecto)
+  if (seleccion && !reglas.isFetching && reglas.data && !reglas.data.some((r) => r.id === seleccion)) {
+    if (filtros.tipo || filtros.estado) { setTipo(''); setEstado(''); setFiltros({}) }
+    else setSeleccion(null)
+  }
 
   const filtrar = (e: FormEvent) => {
     e.preventDefault()
@@ -57,54 +70,46 @@ export default function ReglasZona() {
           <MensajeError error={mensajeErrorRegla(reglas.error, 'No se pudieron cargar las reglas.', 'No tienes permiso para ver las reglas de zona.')} />
           <button type="button" className={BOTON} onClick={() => void reglas.refetch()}>Reintentar</button>
         </div>
-      ) : grupos.length === 0 ? (
+      ) : lista.length === 0 ? (
         <p className="rounded-2xl bg-white p-10 text-center text-gray-500">No hay reglas para estos filtros. Crea una nueva regla en borrador.</p>
       ) : (
-        <div className="grid gap-5 lg:grid-cols-[320px_1fr]">
-          <nav aria-label="Reglas por tipo" className="space-y-4">
-            {grupos.map((g) => (
-              <section key={g.tipo} className="rounded-2xl bg-white p-4">
-                <h2 className="mb-2 flex items-center justify-between font-semibold text-gray-900">
-                  <span>{g.tipo}</span>
-                  <span className="text-xs font-normal text-gray-400">{g.activa ? `Activa: v${g.activa.version}` : 'Sin regla activa'}</span>
-                </h2>
-                <ul className="space-y-1">
-                  {g.reglas.map((r) => (
-                    <li key={r.id}>
-                      <button
-                        type="button"
-                        onClick={() => setSeleccion(r.id)}
-                        aria-current={r.id === idSeleccionado ? 'true' : undefined}
-                        className={`w-full rounded-xl px-3 py-2 text-left text-sm transition ${r.id === idSeleccionado ? 'bg-[#eaf4ee]' : 'hover:bg-gray-50'}`}
-                      >
-                        <span className="flex items-center justify-between gap-2">
-                          <span className="font-medium text-gray-900">v{r.version}</span>
-                          <EstadoBadge estado={r.estado} />
-                        </span>
-                        <span className="mt-0.5 block text-xs text-gray-500">
-                          {r.aprobadaPor ? `Aprobó ${r.aprobadaPor.nombre}` : 'Sin aprobar'} · {formatearFecha(r.creadaEn)}
-                          {!r.calibrada && ' · sin calibrar'}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ))}
-          </nav>
-          {seleccionada ? (
-            <DetalleRegla
-              key={seleccionada.id}
-              regla={seleccionada}
-              rol={rol}
-              seleccionar={setSeleccion}
-            />
-          ) : (
-            <p className="rounded-2xl bg-white p-10 text-center text-gray-500">Selecciona una versión para ver su tabla.</p>
-          )}
-        </div>
+        <section className="overflow-hidden rounded-2xl bg-white shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <caption className="sr-only">Reglas de zona por tipo y versión</caption>
+              <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+                <tr><th scope="col" className="px-5 py-3 font-semibold">Tipo de zona</th><th scope="col" className="px-5 py-3 font-semibold">Versión</th><th scope="col" className="px-5 py-3 font-semibold">Estado</th><th scope="col" className="px-5 py-3 font-semibold">Calibración</th><th scope="col" className="px-5 py-3 font-semibold">Creada</th><th scope="col" className="px-5 py-3 text-center font-semibold">Información</th></tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {lista.map((r) => (
+                  <tr key={r.id} className={r.id === idSeleccionado ? 'bg-[#f2f8f4]' : 'hover:bg-gray-50'}>
+                    <td className="px-5 py-4 font-medium text-gray-900">{r.tipoEnfermedad}</td>
+                    <td className="px-5 py-4 text-gray-700">v{r.version}</td>
+                    <td className="px-5 py-4"><EstadoBadge estado={r.estado} /></td>
+                    <td className="px-5 py-4 text-gray-600">{r.calibrada ? 'Calibrada' : 'Sin calibrar'}</td>
+                    <td className="px-5 py-4 text-gray-600">{formatearFecha(r.creadaEn)}</td>
+                    <td className="px-5 py-4 text-center"><button type="button" onClick={() => setSeleccion(r.id)} aria-label={`Ver información de ${r.tipoEnfermedad} v${r.version}`} className="inline-flex items-center whitespace-nowrap rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:border-agro-green hover:text-agro-green">
+                      Ver información
+                    </button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
       )}
 
+      {seleccionada && (
+        <Dialogo titulo={`Regla de zona: ${seleccionada.tipoEnfermedad} · v${seleccionada.version}`} cerrar={cerrarDetalle} cerrarAlClicFuera etiquetaVolver="Volver a reglas de zona" ancho="max-w-5xl">
+          <DetalleRegla
+            key={seleccionada.id}
+            regla={seleccionada}
+            rol={rol}
+            seleccionar={setSeleccion}
+            avisarSinGuardar={avisarSinGuardar}
+          />
+        </Dialogo>
+      )}
       {nueva && <DialogoNuevaRegla cerrar={() => setNueva(false)} creada={(r) => { setNueva(false); setSeleccion(r.id) }} />}
     </div>
   )

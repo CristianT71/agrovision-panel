@@ -3,11 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { clavesVuelos, vuelosService, type FiltrosVuelos } from '../../api/vuelos/vuelos.service'
 import { altitudVuelo, bytesVuelo, desdeDelDia, ETIQUETAS_TIPO, fechaVuelo, hastaDelDia, TIPOS_ARCHIVO } from '../../utils/vuelos'
+import { obtenerSesion } from '../../api/auth/session'
+import ChatAsistente from '../../components/ChatAsistente/ChatAsistente'
 import FormularioVuelo from './FormularioVuelo'
 import { BOTON, CAMPO, ErrorVuelo, Paginacion, PRIMARIO } from './ui'
 
 export default function Vuelos() {
   const navegar = useNavigate()
+  const esAdmin = obtenerSesion()?.rol === 'administrador'
   const [nuevo, setNuevo] = useState(false)
   const [lote, setLote] = useState('')
   const [desde, setDesde] = useState('')
@@ -20,7 +23,7 @@ export default function Vuelos() {
     if (!rangoInvalido) setFiltros({ pagina: 1, limite: 20, lote: lote.trim() || undefined, desde: desdeDelDia(desde), hasta: hastaDelDia(hasta) })
   }
   return <div className="space-y-5">
-    <header className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-2xl font-bold text-gray-900">Vuelos de dron</h1><p className="mt-1 text-sm text-gray-500">Capturas y telemetría del dron · Horas en hora de Colombia</p></div><button type="button" className={PRIMARIO} onClick={() => setNuevo(true)}>Nuevo vuelo</button></header>
+    <header className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-2xl font-bold text-gray-900">IA y análisis multiespectral</h1><p className="mt-1 text-sm text-gray-500">Capturas y telemetría del dron · Horas en hora de Colombia</p></div><button type="button" className={PRIMARIO} onClick={() => setNuevo(true)}>Nuevo vuelo</button></header>
     <form onSubmit={filtrar} className="flex flex-wrap items-end gap-3 rounded-2xl bg-white p-4">
       <label className="text-sm text-gray-600">Lote<input value={lote} onChange={e => setLote(e.target.value)} className={`${CAMPO} mt-1`} /></label>
       <label className="text-sm text-gray-600">Desde<input type="date" value={desde} onChange={e => setDesde(e.target.value)} className={`${CAMPO} mt-1`} /></label>
@@ -44,5 +47,6 @@ export default function Vuelos() {
       <Paginacion pagina={filtros.pagina ?? 1} limite={20} total={vuelos.data.total} cargando={vuelos.isFetching} cambiar={pagina => setFiltros({ ...filtros, pagina })} />
     </>}
     {nuevo && <FormularioVuelo cerrar={() => setNuevo(false)} guardado={v => navegar(`/vuelos/${encodeURIComponent(v.id)}?subir=1`)} />}
+    {esAdmin && <ChatAsistente />}
   </div>
 }

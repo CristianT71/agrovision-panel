@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import type { Rol } from '../../api/auth/session'
 import type { ReglaZona } from '../../api/reglas-zona/reglas-zona.service'
 import { formatearFechaHora } from '../../utils/fechas'
@@ -29,6 +29,7 @@ type Props = {
   regla: ReglaZona
   rol: Rol | null
   seleccionar: (id: string | null) => void
+  avisarSinGuardar?: (sinGuardar: boolean) => void
 }
 
 type Confirmacion = 'activar' | 'archivar' | 'eliminar' | 'aprobar' | null
@@ -42,7 +43,7 @@ function ConsecuenciaActivacion({ regla }: { regla: ReglaZona }) {
 }
 
 // Se monta con key={regla.id}: el estado del editor se reinicia al cambiar de regla
-export default function DetalleRegla({ regla, rol, seleccionar }: Props) {
+export default function DetalleRegla({ regla, rol, seleccionar, avisarSinGuardar }: Props) {
   const acciones = accionesDisponibles(rol, regla.estado)
   const [filas, setFilas] = useState(() => aEditables(regla.filas))
   const [notas, setNotas] = useState(regla.notas ?? '')
@@ -86,6 +87,11 @@ export default function DetalleRegla({ regla, rol, seleccionar }: Props) {
   // En ambos casos el trabajo local se queda en pantalla hasta que la persona decida recargar.
   const guardadoRechazado = sinGuardar && esConflictoRevision(editar.error)
   const enConflicto = sincronizacion === 'conflicto' || guardadoRechazado
+  // El contenedor pide confirmar antes de cerrar el detalle si hay ediciones sin guardar
+  useEffect(() => {
+    avisarSinGuardar?.(sinGuardar)
+    return () => avisarSinGuardar?.(false)
+  }, [sinGuardar, avisarSinGuardar])
   const bloqueoAprobar = motivoBloqueoAprobar(sinGuardar, errores.length > 0)
 
   const guardar = () => {
@@ -109,8 +115,7 @@ export default function DetalleRegla({ regla, rol, seleccionar }: Props) {
       <section className="space-y-4 rounded-2xl bg-white p-5">
         <header className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">{regla.tipoEnfermedad} · v{regla.version}</h2>
-            <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-gray-500">
+            <p className="flex flex-wrap items-center gap-2 text-sm text-gray-500">
               <EstadoBadge estado={regla.estado} />
               <span>{regla.calibrada ? 'Calibrada' : 'Sin calibrar'}</span>
             </p>

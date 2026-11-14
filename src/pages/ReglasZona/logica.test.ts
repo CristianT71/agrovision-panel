@@ -5,7 +5,6 @@ import {
   aEditables,
   aFilas,
   agregarFila,
-  agruparPorTipo,
   claveSimulacion,
   cuerpoAprobacion,
   cuerpoGuardado,
@@ -234,14 +233,6 @@ describe('lista e historial', () => {
   const regla = (tipo: string, version: number, estado: EstadoRegla): ReglaZona => ({
     id: `${tipo}-${version}`, tipoEnfermedad: tipo, version, revision: 1, estado, calibrada: false, notas: null, filas: EJEMPLO,
     creadaPor: null, creadaEn: '2026-01-01T00:00:00Z', aprobadaPor: null, aprobadaEn: null, activadaEn: null,
-  })
-
-  it('agrupa por tipo, ordena versiones de mayor a menor y señala la activa', () => {
-    const grupos = agruparPorTipo([regla('roya', 1, 'archivada'), regla('mancha', 1, 'borrador'), regla('roya', 3, 'borrador'), regla('roya', 2, 'activa')])
-    expect(grupos.map((g) => g.tipo)).toEqual(['mancha', 'roya'])
-    expect(grupos[1].reglas.map((r) => r.version)).toEqual([3, 2, 1])
-    expect(grupos[1].activa?.version).toBe(2)
-    expect(grupos[0].activa).toBeNull()
   })
 
   it('la confirmación de activar nombra la activa consultada, no la de la lista filtrada', () => {
