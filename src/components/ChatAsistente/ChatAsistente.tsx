@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { enviarMensajeChat } from '../../api/chat-multiespectral/chat.service'
+import { partirEnlaces } from './partirEnlaces'
 
 const PRIMARIO = 'rounded-xl bg-agro-green px-4 py-2 text-sm font-medium text-white hover:bg-green-800 disabled:opacity-50'
 
 type Mensaje = { id: string; autor: 'usuario' | 'asistente'; texto: string }
 const webhook = (import.meta.env.VITE_N8N_CHAT_WEBHOOK_URL as string | undefined)?.trim()
+// Analizar un vuelo y generar el informe puede tardar más de un minuto
+const ESPERA_MAXIMA_MS = 240000
 
 export default function ChatAsistente() {
   const [abierto, setAbierto] = useState(false)
@@ -27,7 +30,7 @@ export default function ChatAsistente() {
     setTexto('')
     setError('')
     setEnviando(true)
-    const limite = window.setTimeout(() => controlador.abort(), 60000)
+    const limite = window.setTimeout(() => controlador.abort(), ESPERA_MAXIMA_MS)
     try {
       const respuesta = await enviarMensajeChat(webhook, sesion.current, mensaje, controlador.signal)
       if (!controlador.signal.aborted) setMensajes(actuales => [...actuales, { id: crypto.randomUUID(), autor: 'asistente', texto: respuesta }])
@@ -57,7 +60,7 @@ export default function ChatAsistente() {
     </div>
     <div role="log" aria-label="Conversación con el asistente" aria-live="polite" className="min-h-28 flex-1 space-y-3 overflow-y-auto bg-gray-50/70 p-5 sm:min-h-48">
       {mensajes.length === 0 && <p className="text-sm text-gray-500">Escribe una pregunta para empezar. Comparte los datos que quieras consultar.</p>}
-      {mensajes.map(m => <div key={m.id} className={`flex ${m.autor === 'usuario' ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[85%] whitespace-pre-wrap break-words rounded-2xl px-4 py-3 text-sm ${m.autor === 'usuario' ? 'bg-agro-green text-white' : 'border border-gray-100 bg-white text-gray-800'}`}><span className="sr-only">{m.autor === 'usuario' ? 'Tú: ' : 'Asistente: '}</span>{m.texto}</div></div>)}
+      {mensajes.map(m => <div key={m.id} className={`flex ${m.autor === 'usuario' ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[85%] whitespace-pre-wrap break-words rounded-2xl px-4 py-3 text-sm ${m.autor === 'usuario' ? 'bg-agro-green text-white' : 'border border-gray-100 bg-white text-gray-800'}`}><span className="sr-only">{m.autor === 'usuario' ? 'Tú: ' : 'Asistente: '}</span>{m.autor === 'asistente' ? partirEnlaces(m.texto).map((s, i) => s.tipo === 'enlace' ? <a key={i} href={s.valor} target="_blank" rel="noopener noreferrer" className="break-all font-medium text-agro-green underline">{s.valor}</a> : <span key={i}>{s.valor}</span>) : m.texto}</div></div>)}
       {enviando && <p role="status" className="text-sm text-gray-500">El asistente está respondiendo…</p>}
     </div>
     <form onSubmit={enviar} className="space-y-2 p-4">
