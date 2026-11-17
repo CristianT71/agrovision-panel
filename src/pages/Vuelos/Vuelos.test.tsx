@@ -23,11 +23,11 @@ describe('pantalla de vuelos', () => {
     expect(html).not.toContain('dato interno')
     expect(html).not.toContain('<table')
   })
-  it('muestra el asistente solo al administrador', () => {
+  it('no muestra el asistente en la lista de vuelos, ni al administrador', () => {
     consulta.mockReturnValue({ isPending: false, isError: false, data: { datos: [], total: 0 }, isFetching: false } as ReturnType<typeof useQuery>)
     const abrir = 'Abrir asistente'
     expect(renderToStaticMarkup(<MemoryRouter><Vuelos /></MemoryRouter>)).not.toContain(abrir)
     vi.mocked(obtenerSesion).mockReturnValue({ rol: 'administrador' } as ReturnType<typeof obtenerSesion>)
-    expect(renderToStaticMarkup(<MemoryRouter><Vuelos /></MemoryRouter>)).toContain(abrir)
+    expect(renderToStaticMarkup(<MemoryRouter><Vuelos /></MemoryRouter>)).not.toContain(abrir)
   })
 })

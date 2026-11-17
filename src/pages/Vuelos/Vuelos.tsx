@@ -3,14 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { clavesVuelos, vuelosService, type FiltrosVuelos } from '../../api/vuelos/vuelos.service'
 import { altitudVuelo, bytesVuelo, desdeDelDia, ETIQUETAS_TIPO, fechaVuelo, hastaDelDia, TIPOS_ARCHIVO } from '../../utils/vuelos'
-import { obtenerSesion } from '../../api/auth/session'
-import ChatAsistente from '../../components/ChatAsistente/ChatAsistente'
 import FormularioVuelo from './FormularioVuelo'
 import { BOTON, CAMPO, ErrorVuelo, Paginacion, PRIMARIO } from './ui'
 
 export default function Vuelos() {
   const navegar = useNavigate()
-  const esAdmin = obtenerSesion()?.rol === 'administrador'
   const [nuevo, setNuevo] = useState(false)
   const [lote, setLote] = useState('')
   const [desde, setDesde] = useState('')
@@ -47,6 +44,5 @@ export default function Vuelos() {
       <Paginacion pagina={filtros.pagina ?? 1} limite={20} total={vuelos.data.total} cargando={vuelos.isFetching} cambiar={pagina => setFiltros({ ...filtros, pagina })} />
     </>}
     {nuevo && <FormularioVuelo cerrar={() => setNuevo(false)} guardado={v => navegar(`/vuelos/${encodeURIComponent(v.id)}?subir=1`)} />}
-    {esAdmin && <ChatAsistente />}
   </div>
 }
