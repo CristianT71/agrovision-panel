@@ -3,6 +3,8 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { clavesVuelos, vuelosService, type RangoAltura, type Vuelo } from '../../api/vuelos/vuelos.service'
 import { altitudVuelo, bytesVuelo, duracionVuelo, ETIQUETAS_TIPO, fechaVuelo, numeroVuelo, TIPOS_ARCHIVO } from '../../utils/vuelos'
+import { obtenerSesion } from '../../api/auth/session'
+import ChatAsistente from '../../components/ChatAsistente/ChatAsistente'
 import FormularioVuelo from './FormularioVuelo'
 import GaleriaVuelo from './GaleriaVuelo'
 import SubidaArchivos from './SubidaArchivos'
@@ -18,6 +20,7 @@ export default function VueloDetalle() {
 }
 function ContenidoVuelo({ id }: { id: string }) {
   const [parametros] = useSearchParams()
+  const esAdmin = obtenerSesion()?.rol === 'administrador'
   const [editar, setEditar] = useState(false)
   const [eliminar, setEliminar] = useState(false)
   const [subiendo, setSubiendo] = useState(false)
@@ -37,6 +40,7 @@ function ContenidoVuelo({ id }: { id: string }) {
       {eliminar && <BorrarVuelo vuelo={vuelo.data} cerrar={() => setEliminar(false)} />}
       {archivoAbierto && <VisorArchivo key={archivoAbierto} vueloId={id} archivoId={archivoAbierto} cerrar={() => setArchivoAbierto(null)} />}
     </>}
+    {esAdmin && <ChatAsistente />}
   </div>
 }
 function Resumen({ vuelo }: { vuelo: Vuelo }) {
