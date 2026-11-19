@@ -9,7 +9,16 @@ const webhook = (import.meta.env.VITE_N8N_CHAT_WEBHOOK_URL as string | undefined
 // Analizar un vuelo y generar el informe puede tardar más de un minuto
 const ESPERA_MAXIMA_MS = 240000
 
-export default function ChatAsistente() {
+/** Texto del enlace: el del informe en PDF se muestra como acción de descarga y el resto, como la URL. */
+function etiquetaEnlace(url: string): string {
+  try {
+    return new URL(url).pathname.endsWith('/webhook/informe') ? 'Descargar informe en PDF' : url
+  } catch {
+    return url
+  }
+}
+
+export default function ChatAsistente({ vueloId }: { vueloId?: string }) {
   const [abierto, setAbierto] = useState(false)
   const [mensajes, setMensajes] = useState<Mensaje[]>([])
   const [texto, setTexto] = useState('')
@@ -32,7 +41,7 @@ export default function ChatAsistente() {
     setEnviando(true)
     const limite = window.setTimeout(() => controlador.abort(), ESPERA_MAXIMA_MS)
     try {
-      const respuesta = await enviarMensajeChat(webhook, sesion.current, mensaje, controlador.signal)
+      const respuesta = await enviarMensajeChat(webhook, sesion.current, mensaje, controlador.signal, vueloId)
       if (!controlador.signal.aborted) setMensajes(actuales => [...actuales, { id: crypto.randomUUID(), autor: 'asistente', texto: respuesta }])
     } catch {
       if (peticion.current === controlador) {
@@ -55,12 +64,12 @@ export default function ChatAsistente() {
   return <div className="fixed bottom-5 right-5 z-40 flex flex-col items-end gap-3">
     {abierto && <section id="chat-multiespectral" aria-labelledby="titulo-chat-multiespectral" className="flex max-h-[min(36rem,calc(100dvh-7rem))] w-[min(24rem,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-2xl">
     <div className="flex flex-wrap items-start justify-between gap-3 border-b border-gray-100 px-5 py-4">
-      <div><h2 id="titulo-chat-multiespectral" className="text-lg font-semibold text-gray-900">Asistente de análisis</h2><p className="mt-1 text-sm text-gray-500">Haz una consulta al asistente de AgroVision.</p></div>
+      <div><h2 id="titulo-chat-multiespectral" className="text-lg font-semibold text-gray-900">Asistente de análisis</h2><p className="mt-1 text-sm text-gray-500">Pregunta por el análisis de este vuelo o pide el informe en PDF.</p></div>
       <button type="button" onClick={nuevaConversacion} disabled={enviando || mensajes.length === 0} className="text-sm font-medium text-agro-green hover:underline disabled:opacity-40">Nueva conversación</button>
     </div>
     <div role="log" aria-label="Conversación con el asistente" aria-live="polite" className="min-h-28 flex-1 space-y-3 overflow-y-auto bg-gray-50/70 p-5 sm:min-h-48">
       {mensajes.length === 0 && <p className="text-sm text-gray-500">Escribe una pregunta para empezar. Comparte los datos que quieras consultar.</p>}
-      {mensajes.map(m => <div key={m.id} className={`flex ${m.autor === 'usuario' ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[85%] whitespace-pre-wrap break-words rounded-2xl px-4 py-3 text-sm ${m.autor === 'usuario' ? 'bg-agro-green text-white' : 'border border-gray-100 bg-white text-gray-800'}`}><span className="sr-only">{m.autor === 'usuario' ? 'Tú: ' : 'Asistente: '}</span>{m.autor === 'asistente' ? partirEnlaces(m.texto).map((s, i) => s.tipo === 'enlace' ? <a key={i} href={s.valor} target="_blank" rel="noopener noreferrer" className="break-all font-medium text-agro-green underline">{s.valor}</a> : <span key={i}>{s.valor}</span>) : m.texto}</div></div>)}
+      {mensajes.map(m => <div key={m.id} className={`flex ${m.autor === 'usuario' ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[85%] whitespace-pre-wrap break-words rounded-2xl px-4 py-3 text-sm ${m.autor === 'usuario' ? 'bg-agro-green text-white' : 'border border-gray-100 bg-white text-gray-800'}`}><span className="sr-only">{m.autor === 'usuario' ? 'Tú: ' : 'Asistente: '}</span>{m.autor === 'asistente' ? partirEnlaces(m.texto).map((s, i) => s.tipo === 'enlace' ? <a key={i} href={s.valor} target="_blank" rel="noopener noreferrer" className="break-all font-medium text-agro-green underline">{etiquetaEnlace(s.valor)}</a> : <span key={i}>{s.valor}</span>) : m.texto}</div></div>)}
       {enviando && <p role="status" className="text-sm text-gray-500">El asistente está respondiendo…</p>}
     </div>
     <form onSubmit={enviar} className="space-y-2 p-4">

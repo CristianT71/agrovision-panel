@@ -40,7 +40,7 @@ function ContenidoVuelo({ id }: { id: string }) {
       {eliminar && <BorrarVuelo vuelo={vuelo.data} cerrar={() => setEliminar(false)} />}
       {archivoAbierto && <VisorArchivo key={archivoAbierto} vueloId={id} archivoId={archivoAbierto} cerrar={() => setArchivoAbierto(null)} />}
     </>}
-    {esAdmin && <ChatAsistente />}
+    {esAdmin && <ChatAsistente vueloId={id} />}
   </div>
 }
 function Resumen({ vuelo }: { vuelo: Vuelo }) {

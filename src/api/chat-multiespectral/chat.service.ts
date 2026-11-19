@@ -1,9 +1,9 @@
 /** Contrato compatible con Chat Trigger de n8n y webhooks que devuelvan { output: "..." }. */
-export async function enviarMensajeChat(url: string, sessionId: string, chatInput: string, signal?: AbortSignal): Promise<string> {
+export async function enviarMensajeChat(url: string, sessionId: string, chatInput: string, signal?: AbortSignal, vueloId?: string): Promise<string> {
   const respuesta = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'sendMessage', sessionId, chatInput }),
+    body: JSON.stringify({ action: 'sendMessage', sessionId, chatInput, ...(vueloId ? { vueloId } : {}) }),
     signal,
     credentials: 'omit',
     cache: 'no-store',
