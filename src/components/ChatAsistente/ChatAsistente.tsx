@@ -1,29 +1,21 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { enviarMensajeChat, ErrorAsistente } from '../../api/chat-multiespectral/chat.service'
+import { codigoInforme, descargarInforme, enviarMensajeChat, ErrorAsistente } from '../../api/chat-multiespectral/chat.service'
 import { partirEnlaces } from './partirEnlaces'
 
 const PRIMARIO = 'rounded-xl bg-agro-green px-4 py-2 text-sm font-medium text-white hover:bg-green-800 disabled:opacity-50'
 
 type Mensaje = { id: string; autor: 'usuario' | 'asistente'; texto: string }
-const webhook = (import.meta.env.VITE_N8N_CHAT_WEBHOOK_URL as string | undefined)?.trim()
 // Analizar un vuelo y generar el informe puede tardar más de un minuto
 const ESPERA_MAXIMA_MS = 240000
 
-/** Texto del enlace: el del informe en PDF se muestra como acción de descarga y el resto, como la URL. */
-function etiquetaEnlace(url: string): string {
-  try {
-    return new URL(url).pathname.endsWith('/webhook/informe') ? 'Descargar informe en PDF' : url
-  } catch {
-    return url
-  }
-}
-
+// El chat pasa por la API con la sesión del panel: el navegador no conoce la URL de n8n
 export default function ChatAsistente({ vueloId }: { vueloId?: string }) {
   const [abierto, setAbierto] = useState(false)
   const [mensajes, setMensajes] = useState<Mensaje[]>([])
   const [texto, setTexto] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState('')
+  const [descargando, setDescargando] = useState(false)
   const sesion = useRef<string | null>(null)
   const peticion = useRef<AbortController | null>(null)
   useEffect(() => () => { const activa = peticion.current; peticion.current = null; activa?.abort() }, [])
@@ -31,7 +23,7 @@ export default function ChatAsistente({ vueloId }: { vueloId?: string }) {
   async function enviar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault()
     const mensaje = texto.trim()
-    if (!mensaje || !webhook || peticion.current) return
+    if (!mensaje || !vueloId || peticion.current) return
     sesion.current ??= crypto.randomUUID()
     const controlador = new AbortController()
     peticion.current = controlador
@@ -41,7 +33,7 @@ export default function ChatAsistente({ vueloId }: { vueloId?: string }) {
     setEnviando(true)
     const limite = window.setTimeout(() => controlador.abort(), ESPERA_MAXIMA_MS)
     try {
-      const respuesta = await enviarMensajeChat(webhook, sesion.current, mensaje, controlador.signal, vueloId)
+      const respuesta = await enviarMensajeChat(vueloId, sesion.current, mensaje, controlador.signal)
       if (!controlador.signal.aborted) setMensajes(actuales => [...actuales, { id: crypto.randomUUID(), autor: 'asistente', texto: respuesta }])
     } catch (e) {
       if (peticion.current === controlador) {
@@ -51,6 +43,19 @@ export default function ChatAsistente({ vueloId }: { vueloId?: string }) {
     } finally {
       window.clearTimeout(limite)
       if (peticion.current === controlador) { peticion.current = null; setEnviando(false) }
+    }
+  }
+
+  async function bajarInforme(codigo: string) {
+    if (!vueloId || descargando) return
+    setDescargando(true)
+    setError('')
+    try {
+      await descargarInforme(vueloId, codigo)
+    } catch (e) {
+      setError(e instanceof ErrorAsistente ? e.message : 'No se pudo descargar el informe. Inténtalo de nuevo.')
+    } finally {
+      setDescargando(false)
     }
   }
 
@@ -69,13 +74,13 @@ export default function ChatAsistente({ vueloId }: { vueloId?: string }) {
     </div>
     <div role="log" aria-label="Conversación con el asistente" aria-live="polite" className="min-h-28 flex-1 space-y-3 overflow-y-auto bg-gray-50/70 p-5 sm:min-h-48">
       {mensajes.length === 0 && <p className="text-sm text-gray-500">Escribe una pregunta para empezar. Comparte los datos que quieras consultar.</p>}
-      {mensajes.map(m => <div key={m.id} className={`flex ${m.autor === 'usuario' ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[85%] whitespace-pre-wrap break-words rounded-2xl px-4 py-3 text-sm ${m.autor === 'usuario' ? 'bg-agro-green text-white' : 'border border-gray-100 bg-white text-gray-800'}`}><span className="sr-only">{m.autor === 'usuario' ? 'Tú: ' : 'Asistente: '}</span>{m.autor === 'asistente' ? partirEnlaces(m.texto).map((s, i) => s.tipo === 'enlace' ? <a key={i} href={s.valor} target="_blank" rel="noopener noreferrer" className="break-all font-medium text-agro-green underline">{etiquetaEnlace(s.valor)}</a> : <span key={i}>{s.valor}</span>) : m.texto}</div></div>)}
+      {mensajes.map(m => <div key={m.id} className={`flex ${m.autor === 'usuario' ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[85%] whitespace-pre-wrap break-words rounded-2xl px-4 py-3 text-sm ${m.autor === 'usuario' ? 'bg-agro-green text-white' : 'border border-gray-100 bg-white text-gray-800'}`}><span className="sr-only">{m.autor === 'usuario' ? 'Tú: ' : 'Asistente: '}</span>{m.autor === 'asistente' ? partirEnlaces(m.texto).map((s, i) => { if (s.tipo !== 'enlace') return <span key={i}>{s.valor}</span>; const codigo = codigoInforme(s.valor); return codigo ? <button key={i} type="button" onClick={() => void bajarInforme(codigo)} disabled={descargando} className="font-medium text-agro-green underline disabled:opacity-50">{descargando ? 'Descargando informe…' : 'Descargar informe en PDF'}</button> : <a key={i} href={s.valor} target="_blank" rel="noopener noreferrer" className="break-all font-medium text-agro-green underline">{s.valor}</a> }) : m.texto}</div></div>)}
       {enviando && <p role="status" className="text-sm text-gray-500">El asistente está respondiendo…</p>}
     </div>
     <form onSubmit={enviar} className="space-y-2 p-4">
-      {!webhook && <p className="text-sm text-amber-700">El asistente aún no está configurado.</p>}
+      {!vueloId && <p className="text-sm text-amber-700">Abre un vuelo para usar el asistente.</p>}
       {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
-      <div className="flex items-end gap-3"><label htmlFor="mensaje-chat-multiespectral" className="sr-only">Mensaje para el asistente</label><textarea id="mensaje-chat-multiespectral" value={texto} onChange={e => setTexto(e.target.value)} disabled={!webhook || enviando} maxLength={4000} rows={2} placeholder="Escribe tu pregunta…" className="min-h-12 flex-1 resize-y rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-800 focus:border-agro-green focus:outline-none disabled:bg-gray-50" /><button className={PRIMARIO} disabled={!webhook || enviando || !texto.trim()}>Enviar</button></div>
+      <div className="flex items-end gap-3"><label htmlFor="mensaje-chat-multiespectral" className="sr-only">Mensaje para el asistente</label><textarea id="mensaje-chat-multiespectral" value={texto} onChange={e => setTexto(e.target.value)} disabled={!vueloId || enviando} maxLength={4000} rows={2} placeholder="Escribe tu pregunta…" className="min-h-12 flex-1 resize-y rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-800 focus:border-agro-green focus:outline-none disabled:bg-gray-50" /><button className={PRIMARIO} disabled={!vueloId || enviando || !texto.trim()}>Enviar</button></div>
     </form>
   </section>}
     <button type="button" aria-label={abierto ? 'Cerrar asistente de análisis' : 'Abrir asistente de análisis'} aria-expanded={abierto} aria-controls="chat-multiespectral" onClick={() => setAbierto(actual => !actual)} className="flex h-14 w-14 items-center justify-center rounded-full bg-agro-green text-white shadow-lg transition hover:bg-green-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-agro-green">
