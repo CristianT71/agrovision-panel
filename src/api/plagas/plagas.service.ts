@@ -99,20 +99,27 @@ export function componerProtocolo(protocolo: ProtocoloQuimico): string {
     .join('\n')
 }
 
+// No descarta nada: las líneas sin etiqueta (continuaciones o texto de otra herramienta) se suman al campo
+// anterior, o al ingrediente activo si van antes de cualquier etiqueta; volver a guardar las conserva
 export function descomponerProtocolo(texto: string | null): ProtocoloQuimico {
   const protocolo: ProtocoloQuimico = { ingredienteActivo: '', dosis: '', periodoCarencia: '' }
   if (!texto) return protocolo
 
+  const agregar = (clave: keyof ProtocoloQuimico, valor: string) => {
+    protocolo[clave] = protocolo[clave] ? `${protocolo[clave]}\n${valor}` : valor
+  }
+
+  let actual: keyof ProtocoloQuimico = 'ingredienteActivo'
   for (const linea of texto.split('\n')) {
     const clave = (Object.keys(ETIQUETAS_PROTOCOLO) as (keyof ProtocoloQuimico)[]).find((c) =>
       linea.startsWith(`${ETIQUETAS_PROTOCOLO[c]}:`),
     )
-    if (clave) protocolo[clave] = linea.slice(ETIQUETAS_PROTOCOLO[clave].length + 1).trim()
-  }
-
-  // Texto que no sigue el formato (ej. escrito desde otra herramienta): se conserva completo
-  if (!protocolo.ingredienteActivo && !protocolo.dosis && !protocolo.periodoCarencia) {
-    protocolo.ingredienteActivo = texto
+    if (clave) {
+      actual = clave
+      agregar(clave, linea.slice(ETIQUETAS_PROTOCOLO[clave].length + 1).trim())
+    } else {
+      agregar(actual, linea)
+    }
   }
 
   return protocolo

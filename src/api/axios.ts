@@ -28,7 +28,11 @@ api.interceptors.response.use(
   (respuesta) => respuesta,
   (error) => {
     const esAuth = String(error.config?.url ?? '').startsWith('/auth/')
-    if (axios.isAxiosError(error) && error.response?.status === 401 && !esAuth) {
+    // Solo cierra la sesión si el 401 es del token vigente: una respuesta tardía de una sesión anterior no cierra la nueva
+    const tokenPeticion = String(error.config?.headers?.Authorization ?? '')
+    const token = obtenerToken()
+    const esDeLaSesionActual = !!token && tokenPeticion === `Bearer ${token}`
+    if (axios.isAxiosError(error) && error.response?.status === 401 && !esAuth && esDeLaSesionActual) {
       cerrarSesion()
       window.location.replace('/login?sesion=expirada')
     }

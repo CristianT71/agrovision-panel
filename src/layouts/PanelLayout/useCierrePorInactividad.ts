@@ -12,10 +12,23 @@ export const MINUTOS_INACTIVIDAD = 30
 const MINUTOS_ENTRE_CONSULTAS = 5
 const EVENTOS = ['pointerdown', 'keydown', 'wheel', 'touchstart'] as const
 
-function salir() {
+// Máximo que se espera la revocación en el servidor antes de ir al login
+const ESPERA_REVOCACION_MS = 3_000
+let saliendo = false
+
+// Se limpia lo local al instante y se espera (con tope) a que el servidor revoque el token:
+// navegar de inmediato cancelaría la petición y el token seguiría sirviendo hasta vencer
+async function salir() {
+  if (saliendo) return
+  saliendo = true
   const token = obtenerToken()
-  if (token) authService.cerrarSesion(token).catch(() => {})
   cerrarSesion()
+  if (token) {
+    await Promise.race([
+      authService.cerrarSesion(token).catch(() => {}),
+      new Promise((resolve) => setTimeout(resolve, ESPERA_REVOCACION_MS)),
+    ])
+  }
   window.location.replace('/login?sesion=expirada')
 }
 
@@ -37,7 +50,7 @@ export function useCierrePorInactividad() {
     minutos.current = configurados ?? MINUTOS_INACTIVIDAD
     listo.current = consultado
     // Al abrir el panel (o recargarlo) tras el límite, la sesión se cierra en vez de renovarse
-    if (consultado && sesionInactiva(minutos.current)) salir()
+    if (consultado && sesionInactiva(minutos.current)) void salir()
   }, [configurados, consultado])
 
   useEffect(() => {
@@ -46,7 +59,7 @@ export function useCierrePorInactividad() {
     // Un temporizador revisa cada minuto; también al volver a la pestaña, porque el navegador
     // frena los temporizadores de las pestañas ocultas
     const revisar = () => {
-      if (listo.current && sesionInactiva(minutos.current)) salir()
+      if (listo.current && sesionInactiva(minutos.current)) void salir()
     }
     const intervalo = window.setInterval(revisar, 60_000)
     const alVolver = () => {
@@ -58,7 +71,7 @@ export function useCierrePorInactividad() {
       const ahora = Date.now()
       if (!listo.current || ahora - ultimoRegistro <= 5_000) return
       // Un clic después del límite no revive la sesión: primero se revisa el vencimiento
-      if (sesionInactiva(minutos.current)) return salir()
+      if (sesionInactiva(minutos.current)) return void salir()
       ultimoRegistro = ahora
       registrarActividad()
     }

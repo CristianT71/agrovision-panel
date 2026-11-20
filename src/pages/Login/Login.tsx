@@ -31,6 +31,8 @@ export default function Login() {
     params.get('sesion') === 'expirada' ? 'Tu sesión expiró. Ingresa de nuevo.' : null,
   )
   const [countdown, setCountdown] = useState(0)
+  // Teléfono al que realmente se envió el código: se valida y reenvía contra este, no contra lo que se edite después
+  const [destino, setDestino] = useState('')
 
   const inputsRef = useRef<Array<HTMLInputElement | null>>([])
 
@@ -94,17 +96,16 @@ export default function Login() {
 
   /* ---------- Peticiones ---------- */
 
-  const enviarCodigo = async () => {
+  const enviarCodigo = async (telefono = formattedPhone) => {
     setError(null)
-    if (!isPhoneValid) {
+    if (telefono === formattedPhone && !isPhoneValid) {
       setError('Número inválido')
       return
     }
     setLoading(true)
     try {
-      const { esperaSegundos } = await authService.solicitarOtp({
-        telefono: formattedPhone,
-      })
+      const { esperaSegundos } = await authService.solicitarOtp({ telefono })
+      setDestino(telefono)
       setStep('enterOtp')
       setCountdown(esperaSegundos ?? 30)
       setTimeout(() => inputsRef.current[0]?.focus(), 50)
@@ -118,7 +119,7 @@ export default function Login() {
   const reenviarCodigo = async () => {
     if (countdown > 0) return
     setOtp('')
-    await enviarCodigo()
+    await enviarCodigo(destino)
   }
 
   const validarCodigo = async () => {
@@ -132,7 +133,7 @@ export default function Login() {
     let tokenAbierto: string | null = null
     try {
       const { accessToken, usuario } = await authService.validarOtp({
-        telefono: formattedPhone,
+        telefono: destino,
         codigo,
       })
 
@@ -185,6 +186,7 @@ export default function Login() {
             <div className="mt-2 flex gap-2">
               <select
                 value={dial}
+                disabled={loading}
                 onChange={(e) => setDial(e.target.value)}
                 className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 focus:border-agro-green focus:outline-none"
               >
@@ -200,6 +202,7 @@ export default function Login() {
                 inputMode="numeric"
                 placeholder="311 452 8801"
                 value={phone}
+                disabled={loading}
                 onChange={(e) => setPhone(e.target.value)}
                 className="flex-1 rounded-lg border border-gray-200 px-4 py-2.5 text-sm placeholder:text-gray-400 focus:border-agro-green focus:outline-none"
               />
@@ -207,7 +210,7 @@ export default function Login() {
           </div>
 
           <div className="mt-6">
-            <Button disabled={!isPhoneValid || loading} onClick={enviarCodigo}>
+            <Button disabled={!isPhoneValid || loading} onClick={() => enviarCodigo()}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
                 <path
                   d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1Z"
@@ -240,7 +243,7 @@ export default function Login() {
           <h2 className="mt-5 text-3xl font-bold text-gray-900">Verificar código</h2>
           <p className="mt-1 text-sm text-gray-500">
             Enviamos un código de 6 dígitos a{' '}
-            <strong className="text-gray-900">{formattedPhone}</strong>
+            <strong className="text-gray-900">{destino}</strong>
           </p>
 
           {/* RF-01.4 — 6 casillas secuenciales */}

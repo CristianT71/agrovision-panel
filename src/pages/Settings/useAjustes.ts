@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { mensajeDeError } from '../../api/axios'
+import { generacionSesion } from '../../api/auth/session'
 import {
   ajustesService,
   clavesAjustes,
@@ -13,26 +14,63 @@ type Fuente<T> = {
   guardar: (cambios: Partial<T>) => Promise<T>
 }
 
+// Cola de cambios pendientes por fuente: el valor visible es siempre lo último confirmado por el servidor
+// más los cambios que siguen en vuelo. Así un rechazo no restaura un valor optimista de otro cambio fallido.
+type Cola<T> = { confirmado: T | undefined; pendientes: Set<Partial<T>>; huboError: boolean }
+const colas = new WeakMap<QueryClient, Map<string, Cola<object>>>()
+
 // Cada cambio se guarda al instante: se refleja de inmediato y, si el servidor lo rechaza, vuelve al valor anterior.
 // Los cambios de una misma fuente se envían en fila (scope): una respuesta vieja no pisa a una posterior,
 // y un rechazo solo revierte sus propios campos, no los que otro cambio ya guardó.
+// Las respuestas que llegan después de cerrar sesión se ignoran: no repueblan la caché del siguiente usuario.
 export function opcionesGuardado<T extends object>(queryClient: QueryClient, { clave, guardar }: Pick<Fuente<T>, 'clave' | 'guardar'>) {
+  type Contexto = { generacion: number; cola: Cola<T> }
+  const id = clave.join('.')
+  const vigente = (contexto?: Contexto) => !!contexto && contexto.generacion === generacionSesion()
+  const reconciliar = (cola: Cola<T>) => {
+    if (!cola.confirmado) return
+    const visible = [...cola.pendientes].reduce<T>((acc, cambios) => ({ ...acc, ...cambios }), cola.confirmado)
+    queryClient.setQueryData<T>(clave, visible)
+  }
+
   return {
     mutationFn: guardar,
-    scope: { id: clave.join('.') },
-    onMutate: async (cambios: Partial<T>) => {
+    scope: { id },
+    onMutate: async (cambios: Partial<T>): Promise<Contexto> => {
       await queryClient.cancelQueries({ queryKey: clave })
-      const anterior = queryClient.getQueryData<T>(clave)
+      const generacion = generacionSesion()
+      const llave = `${generacion}:${id}`
+      if (!colas.has(queryClient)) colas.set(queryClient, new Map())
+      const mapa = colas.get(queryClient)!
+      let cola = mapa.get(llave) as Cola<T> | undefined
+      if (!cola) {
+        cola = { confirmado: queryClient.getQueryData<T>(clave), pendientes: new Set(), huboError: false }
+        mapa.set(llave, cola as Cola<object>)
+      }
+      cola.pendientes.add(cambios)
       queryClient.setQueryData<T>(clave, (actual) => (actual ? { ...actual, ...cambios } : actual))
-      return { anterior }
+      return { generacion, cola }
     },
-    onError: (_error: unknown, cambios: Partial<T>, contexto?: { anterior?: T }) => {
-      const anterior = contexto?.anterior
-      if (!anterior) return
-      const revertidos = Object.fromEntries(Object.keys(cambios).map((campo) => [campo, anterior[campo as keyof T]]))
-      queryClient.setQueryData<T>(clave, (actual) => (actual ? { ...actual, ...revertidos } : actual))
+    onError: (_error: unknown, cambios: Partial<T>, contexto?: Contexto) => {
+      if (!contexto || !vigente(contexto)) return
+      contexto.cola.pendientes.delete(cambios)
+      contexto.cola.huboError = true
+      reconciliar(contexto.cola)
     },
-    onSuccess: (guardado: T) => queryClient.setQueryData(clave, guardado),
+    onSuccess: (guardado: T, cambios: Partial<T>, contexto?: Contexto) => {
+      if (!contexto || !vigente(contexto)) return
+      contexto.cola.confirmado = guardado
+      contexto.cola.pendientes.delete(cambios)
+      reconciliar(contexto.cola)
+    },
+    // Al vaciarse la fila se descarta; si algo falló, se recarga lo que de verdad quedó en el servidor
+    onSettled: (_datos: unknown, _error: unknown, _cambios: unknown, contexto?: Contexto) => {
+      if (!contexto || contexto.cola.pendientes.size > 0) return
+      const mapa = colas.get(queryClient)
+      const llave = `${contexto.generacion}:${id}`
+      if (mapa?.get(llave) === contexto.cola) mapa.delete(llave)
+      if (vigente(contexto) && contexto.cola.huboError) void queryClient.invalidateQueries({ queryKey: clave })
+    },
   }
 }
 

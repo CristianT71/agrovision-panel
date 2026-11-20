@@ -93,7 +93,14 @@ export default function PestDrawer({ ficha, onGuardada, onEliminada, onClose }: 
   const guardar = useMutation({
     mutationFn: async (datos: DatosFicha) => {
       const guardada = ficha ? await plagasService.actualizar(ficha.id, datos) : await plagasService.crear(datos)
-      return foto ? await plagasService.subirFoto(guardada.id, foto) : guardada
+      if (!foto) return guardada
+      try {
+        return await plagasService.subirFoto(guardada.id, foto)
+      } catch (error) {
+        // La ficha ya existe: el panel pasa a editarla y el reintento solo vuelve a subir la foto, sin duplicarla
+        alGuardar(guardada)
+        throw error
+      }
     },
     onSuccess: (guardada) => {
       setFoto(null)
@@ -373,7 +380,8 @@ export default function PestDrawer({ ficha, onGuardada, onEliminada, onClose }: 
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                       <Campo label="Ingrediente activo">
-                        <input
+                        <textarea
+                          rows={2}
                           value={protocolo.ingredienteActivo}
                           onChange={(e) => setProtocolo((p) => ({ ...p, ingredienteActivo: e.target.value }))}
                           placeholder="Oxicloruro de cobre"
@@ -381,7 +389,8 @@ export default function PestDrawer({ ficha, onGuardada, onEliminada, onClose }: 
                         />
                       </Campo>
                       <Campo label="Dosis">
-                        <input
+                        <textarea
+                          rows={2}
                           value={protocolo.dosis}
                           onChange={(e) => setProtocolo((p) => ({ ...p, dosis: e.target.value }))}
                           placeholder="3 g/L"
@@ -389,7 +398,8 @@ export default function PestDrawer({ ficha, onGuardada, onEliminada, onClose }: 
                         />
                       </Campo>
                       <Campo label="Periodo de carencia">
-                        <input
+                        <textarea
+                          rows={2}
                           value={protocolo.periodoCarencia}
                           onChange={(e) => setProtocolo((p) => ({ ...p, periodoCarencia: e.target.value }))}
                           placeholder="21 días"

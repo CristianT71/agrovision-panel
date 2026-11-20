@@ -54,8 +54,13 @@ export function obtenerSesion(): Sesion | null {
   }
 }
 
+// Cambia en cada cierre: las respuestas pedidas en una sesión anterior no deben tocar la caché de la nueva
+let generacion = 0
+export const generacionSesion = () => generacion
+
 // RF-01.8 — invalidar sesión y purgar datos locales
 export function cerrarSesion() {
+  generacion++
   queryClient.clear()
   localStorage.removeItem(CLAVE)
   localStorage.removeItem(CLAVE_TOKEN)

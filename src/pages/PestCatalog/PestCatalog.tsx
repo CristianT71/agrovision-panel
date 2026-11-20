@@ -138,9 +138,12 @@ export default function PestCatalog() {
         <PestDrawer
           key={drawer.apertura}
           ficha={drawer.ficha}
-          onGuardada={(ficha) => setDrawer((actual) => actual && { ...actual, ficha })}
+          // Una respuesta tardía de una apertura anterior (otra ficha) no debe reemplazar la ficha abierta
+          onGuardada={(ficha) =>
+            setDrawer((actual) => (actual?.apertura === drawer.apertura ? { ...actual, ficha } : actual))
+          }
           onEliminada={() => {
-            setDrawer(null)
+            setDrawer((actual) => (actual?.apertura === drawer.apertura ? null : actual))
             setConfirmacion('Ficha eliminada correctamente.')
           }}
           onClose={() => setDrawer(null)}

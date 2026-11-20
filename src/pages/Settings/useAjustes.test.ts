@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { MutationObserver, QueryClient } from '@tanstack/react-query'
 import { opcionesGuardado } from './useAjustes'
+import { cerrarSesion } from '../../api/auth/session'
 
 type Ajustes = { minutosInactividad: number; mantenimiento: boolean }
 const clave = ['ajustes', 'sistema'] as const
@@ -55,5 +56,24 @@ describe('guardado de ajustes', () => {
     llamadas[0].resolver(); await primero; await avanzar()
     llamadas[1].resolver(); await segundo
     expect(datos()?.minutosInactividad).toBe(60)
+  })
+  it('si se rechazan dos cambios seguidos del mismo campo, vuelve al valor confirmado', async () => {
+    const { llamadas, mutar, datos } = preparar()
+    const primero = mutar({ minutosInactividad: 15 }); const segundo = mutar({ minutosInactividad: 60 })
+    await avanzar()
+    llamadas[0].rechazar(new Error('rechazado')); await primero; await avanzar()
+    llamadas[1].rechazar(new Error('rechazado')); await segundo
+    expect(datos()?.minutosInactividad).toBe(30)
+  })
+  it('una respuesta que llega tras cerrar sesión no repuebla la caché', async () => {
+    vi.stubGlobal('localStorage', { removeItem: () => {} })
+    const { queryClient, llamadas, mutar, datos } = preparar()
+    const cambio = mutar({ minutosInactividad: 15 })
+    await avanzar()
+    cerrarSesion()
+    queryClient.setQueryData(clave, { minutosInactividad: 45, mantenimiento: true })
+    llamadas[0].resolver(); await cambio
+    expect(datos()).toEqual({ minutosInactividad: 45, mantenimiento: true })
+    vi.unstubAllGlobals()
   })
 })
