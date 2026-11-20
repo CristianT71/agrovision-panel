@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { enviarMensajeChat } from '../../api/chat-multiespectral/chat.service'
+import { enviarMensajeChat, ErrorAsistente } from '../../api/chat-multiespectral/chat.service'
 import { partirEnlaces } from './partirEnlaces'
 
 const PRIMARIO = 'rounded-xl bg-agro-green px-4 py-2 text-sm font-medium text-white hover:bg-green-800 disabled:opacity-50'
@@ -43,9 +43,9 @@ export default function ChatAsistente({ vueloId }: { vueloId?: string }) {
     try {
       const respuesta = await enviarMensajeChat(webhook, sesion.current, mensaje, controlador.signal, vueloId)
       if (!controlador.signal.aborted) setMensajes(actuales => [...actuales, { id: crypto.randomUUID(), autor: 'asistente', texto: respuesta }])
-    } catch {
+    } catch (e) {
       if (peticion.current === controlador) {
-        setError(controlador.signal.aborted ? 'La respuesta tardó demasiado. Inténtalo de nuevo.' : 'No se pudo conectar con el asistente. Inténtalo de nuevo.')
+        setError(controlador.signal.aborted ? 'La respuesta tardó demasiado. Inténtalo de nuevo.' : e instanceof ErrorAsistente ? e.message : 'No se pudo conectar con el asistente. Inténtalo de nuevo.')
         setTexto(mensaje)
       }
     } finally {

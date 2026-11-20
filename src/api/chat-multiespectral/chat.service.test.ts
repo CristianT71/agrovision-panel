@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { enviarMensajeChat } from './chat.service'
+import { enviarMensajeChat, ErrorAsistente } from './chat.service'
 
 afterEach(() => vi.unstubAllGlobals())
 describe('chat de análisis multiespectral', () => {
@@ -17,5 +17,11 @@ describe('chat de análisis multiespectral', () => {
     await expect(enviarMensajeChat('url', 'sesion', 'hola')).resolves.toBe('Hola')
     await expect(enviarMensajeChat('url', 'sesion', 'hola')).rejects.toThrow()
     await expect(enviarMensajeChat('url', 'sesion', 'hola')).rejects.toThrow()
+  })
+  it('explica que el asistente está ocupado cuando el servidor responde con error 5xx o 429', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500 }))
+    await expect(enviarMensajeChat('url', 'sesion', 'hola')).rejects.toThrow(/ocupado.*límite de uso/)
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 429 }))
+    await expect(enviarMensajeChat('url', 'sesion', 'hola')).rejects.toBeInstanceOf(ErrorAsistente)
   })
 })
