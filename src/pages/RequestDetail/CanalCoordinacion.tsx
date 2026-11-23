@@ -70,10 +70,11 @@ export default function CanalCoordinacion({ solicitudId, yo, habilitado }: Props
   }, [mensajes.length])
 
   const enviar = useMutation({
-    mutationFn: () => mensajesService.enviar(solicitudId, { contenido: borrador, adjuntos: archivos }),
-    onSuccess: () => {
-      setBorrador('')
-      setArchivos([])
+    mutationFn: (mensaje: { contenido: string; adjuntos: File[] }) => mensajesService.enviar(solicitudId, mensaje),
+    // Solo se limpia lo que se envió: lo escrito o adjuntado mientras tanto queda en el borrador
+    onSuccess: (_respuesta, enviado) => {
+      setBorrador((actual) => (actual === enviado.contenido ? '' : actual))
+      setArchivos((actuales) => actuales.filter((f) => !enviado.adjuntos.includes(f)))
       queryClient.invalidateQueries({ queryKey: clavesMensajes.lista(solicitudId) })
     },
   })
@@ -81,7 +82,7 @@ export default function CanalCoordinacion({ solicitudId, yo, habilitado }: Props
   const puedeEnviar = (borrador.trim() !== '' || archivos.length > 0) && !enviar.isPending
 
   const intentarEnviar = () => {
-    if (puedeEnviar) enviar.mutate()
+    if (puedeEnviar) enviar.mutate({ contenido: borrador, adjuntos: archivos })
   }
 
   const agregarArchivos = (lista: FileList | null) => {

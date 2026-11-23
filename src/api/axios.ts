@@ -1,25 +1,38 @@
 import axios from 'axios'
+import { ultimaActividad } from './auth/actividad'
 import { cerrarSesion, obtenerToken } from './auth/session'
+
+// Una petición hecha con el usuario quieto más de este tiempo es un sondeo automático
+const SEGUNDOS_PARA_SONDEO = 60
 
 // Sin Content-Type fijo: axios pone JSON para objetos y multipart (con su boundary) para FormData
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
+  // Sin tope, un API colgado dejaría los spinners girando para siempre
+  timeout: 30_000,
 })
 
 api.interceptors.request.use((config) => {
   const token = obtenerToken()
   // Si la petición ya trae su token (ej. justo después del login) no se reemplaza
   if (token && !config.headers.Authorization) config.headers.Authorization = `Bearer ${token}`
+  // El servidor no cuenta como actividad lo que el panel consulta solo (notificaciones, monitores):
+  // así la sesión de una pestaña desatendida caduca a los 30 min (RNF-02.2)
+  if (Date.now() - ultimaActividad() > SEGUNDOS_PARA_SONDEO * 1000) config.headers['X-Sondeo'] = '1'
   return config
 })
 
-// RNF-02.2 — el token vence a los 30 min: un 401 cierra la sesión y vuelve al login.
+// RNF-02.2 — la sesión se cierra por inactividad (ver useCierrePorInactividad) o vence en el servidor: un 401 cierra la sesión y vuelve al login.
 // En /auth el 401 significa "código inválido" y lo maneja la propia pantalla.
 api.interceptors.response.use(
   (respuesta) => respuesta,
   (error) => {
     const esAuth = String(error.config?.url ?? '').startsWith('/auth/')
-    if (axios.isAxiosError(error) && error.response?.status === 401 && !esAuth) {
+    // Solo cierra la sesión si el 401 es del token vigente: una respuesta tardía de una sesión anterior no cierra la nueva
+    const tokenPeticion = String(error.config?.headers?.Authorization ?? '')
+    const token = obtenerToken()
+    const esDeLaSesionActual = !!token && tokenPeticion === `Bearer ${token}`
+    if (axios.isAxiosError(error) && error.response?.status === 401 && !esAuth && esDeLaSesionActual) {
       cerrarSesion()
       window.location.replace('/login?sesion=expirada')
     }

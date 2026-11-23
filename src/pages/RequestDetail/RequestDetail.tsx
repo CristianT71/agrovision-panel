@@ -13,7 +13,6 @@ import {
   porcentajeConfianza,
   solicitudesService,
   versionModeloCorta,
-  type AnexoResolucion,
   type Solicitud,
   type TipoResultado,
 } from '../../api/solicitudes/solicitudes.service'
@@ -22,10 +21,13 @@ import { mensajeDeError } from '../../api/axios'
 import { StatusBadge } from '../../components/StatusBadge/StatusBadge'
 import Button from '../../components/Button/Button'
 import { formatearFechaHora } from '../../utils/fechas'
+import AutorizacionDatos from '../../components/AutorizacionDatos'
 import { tamanoLegible } from '../../utils/archivos'
 import FotoSolicitud, { Marcador } from '../../components/FotoSolicitud/FotoSolicitud'
+import TarjetaUbicacion from '../../components/MapaUbicacion/TarjetaUbicacion'
 import CanalCoordinacion from './CanalCoordinacion'
 import CasosSimilares from './CasosSimilares'
+import AnexosLectura from '../../components/AnexosLectura/AnexosLectura'
 
 export default function RequestDetail() {
   const navigate = useNavigate()
@@ -205,23 +207,28 @@ export default function RequestDetail() {
             </dl>
           </section>
 
+          {/* Ubicación de la captura: la API decide si este agrónomo puede verla */}
+          <TarjetaUbicacion solicitudId={s.id} tieneUbicacion={s.tieneUbicacion} />
+
+          <AutorizacionDatos solicitudId={s.id} />
+
           {/* RF-04.4 — resultado de la IA */}
           <section className="rounded-2xl bg-white p-6">
             <h2 className="font-semibold text-gray-900">Resultado IA</h2>
             <div className="mt-4 space-y-4 text-sm">
               <Dato icono="chip" etiqueta="Versión del modelo">
                 <span className="font-mono font-semibold text-gray-900" title={s.modeloVersionId ?? undefined}>
-                  {versionModeloCorta(s.modeloVersionId)}
+                  {s.modeloVersion ? `v${s.modeloVersion}` : versionModeloCorta(s.modeloVersionId)}
                 </span>
               </Dato>
 
               <div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-500">Nivel de confianza</span>
-                  <span className="font-semibold text-gray-900">{confianza}%</span>
+                  <span className="font-semibold text-gray-900">{confianza === null ? 'Sin dato' : `${confianza}%`}</span>
                 </div>
                 <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-gray-100">
-                  <div className="h-full rounded-full bg-agro-green" style={{ width: `${confianza}%` }} />
+                  <div className="h-full rounded-full bg-agro-green" style={{ width: `${confianza ?? 0}%` }} />
                 </div>
               </div>
             </div>
@@ -289,50 +296,6 @@ function ResolucionLectura({ solicitud: s }: { solicitud: Solicitud }) {
           <AnexosLectura solicitudId={s.id} />
         </div>
       </div>
-    </div>
-  )
-}
-
-/* RF-04.6 — anexos de una resolución ya confirmada */
-function AnexosLectura({ solicitudId }: { solicitudId: string }) {
-  const anexos = useQuery({
-    queryKey: clavesSolicitudes.anexos(solicitudId),
-    queryFn: () => solicitudesService.listarAnexos(solicitudId),
-  })
-  const [errorDescarga, setErrorDescarga] = useState<string | null>(null)
-
-  if (!anexos.data || anexos.data.length === 0) return null
-
-  const descargar = async (anexo: AnexoResolucion) => {
-    setErrorDescarga(null)
-    try {
-      await solicitudesService.descargarAnexo(solicitudId, anexo)
-    } catch (error) {
-      setErrorDescarga(mensajeDeError(error, 'No se pudo descargar el anexo.'))
-    }
-  }
-
-  return (
-    <div className="mt-4">
-      <p className="text-xs font-semibold text-[#2f6b4a]">Anexos</p>
-      <ul className="mt-1.5 space-y-1.5">
-        {anexos.data.map((a) => (
-          <li key={a.id}>
-            <button
-              type="button"
-              onClick={() => descargar(a)}
-              className="flex items-center gap-2 text-xs text-agro-green hover:underline"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-3.5 w-3.5">
-                <path d="M12 4v11M7 10l5 5 5-5M5 20h14" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              {a.nombreOriginal}
-              <span className="text-[#4a8563]">· {tamanoLegible(a.tamanoBytes)}</span>
-            </button>
-          </li>
-        ))}
-      </ul>
-      {errorDescarga && <p className="mt-1 text-xs text-red-600">{errorDescarga}</p>}
     </div>
   )
 }

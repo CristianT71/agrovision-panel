@@ -30,7 +30,8 @@ const REVISION: Record<RevisionDeteccion['estado'], { texto: string; color: stri
 
 // RF-07.3 — estado de la revisión humana y quién la hizo
 export function BadgeRevision({ revision }: { revision: Pick<RevisionDeteccion, 'estado' | 'origen'> }) {
-  const { texto, color } = REVISION[revision.estado]
+  // Un estado nuevo del API no debe romper el monitor: se muestra tal cual
+  const { texto, color } = REVISION[revision.estado] ?? { texto: String(revision.estado), color: 'bg-gray-100 text-gray-500' }
   return (
     <span className={`whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium ${color}`}>
       {texto}

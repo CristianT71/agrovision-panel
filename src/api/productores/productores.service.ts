@@ -14,6 +14,9 @@ export interface Productor {
   estado: EstadoProductor
   consentimiento: boolean
   fechaConsentimiento: string | null
+  // Habeas data (Ley 1581): política de datos que aceptó el productor; null si no la aceptó o la revocó
+  politicaDatosVersion?: string | null
+  politicaDatosFecha?: string | null
 }
 
 export interface FiltrosProductores {

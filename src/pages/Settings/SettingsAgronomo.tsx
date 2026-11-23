@@ -1,30 +1,39 @@
-import { useState } from 'react'
+import type { AjustesPersonalesAgronomo } from '../../api/ajustes/ajustes.service'
+import { useAjustesPersonales } from './useAjustes'
 import Toggle from '../../components/Toggle/Toggle'
+import CorreoNotificaciones from './CorreoNotificaciones'
 import {
-  AJUSTES,
   IDIOMAS,
   SISTEMA,
   ZONAS_HORARIAS,
-  type Ajustes,
-} from './mockAjustes'
+} from './opcionesAjustes'
 import {
-  AvisoGuardado,
+  EstadoAjustes,
   Fila,
   InfoSistema,
   Selector,
   Subgrupo,
   Tarjeta,
 } from './SettingsUI'
-import { useGuardado } from './useGuardado'
 
 export default function SettingsAgronomo() {
-  const [ajustes, setAjustes] = useState<Ajustes>(AJUSTES)
-  const { guardado, avisar } = useGuardado()
+  const { datos: ajustes, cargando, errorCarga, errorGuardado, cambiar, reintentar } =
+    useAjustesPersonales<AjustesPersonalesAgronomo>()
 
-  // TODO: reemplazar por PATCH /ajustes cuando el backend exponga el endpoint
-  const cambiar = <C extends keyof Ajustes>(clave: C, valor: Ajustes[C]) => {
-    setAjustes((prev) => ({ ...prev, [clave]: valor }))
-    avisar()
+  // Hasta que lleguen los ajustes (o si fallan) solo se muestra el estado, sin controles con valores inventados
+  if (!ajustes) {
+    return (
+      <div className="mx-auto max-w-3xl">
+        <h1 className="text-2xl font-bold text-gray-900">Ajustes</h1>
+        <p className="mt-1 text-sm text-gray-500">Preferencias de tu cuenta en AgroVisión</p>
+        <EstadoAjustes
+          cargando={cargando}
+          errorCarga={errorCarga}
+          errorGuardado={errorGuardado}
+          onReintentar={reintentar}
+        />
+      </div>
+    )
   }
 
   return (
@@ -33,7 +42,12 @@ export default function SettingsAgronomo() {
       <h1 className="text-2xl font-bold text-gray-900">Ajustes</h1>
       <p className="mt-1 text-sm text-gray-500">Preferencias de tu cuenta en AgroVisión</p>
 
-      {guardado && <AvisoGuardado />}
+      <EstadoAjustes
+        cargando={cargando}
+        errorCarga={errorCarga}
+        errorGuardado={errorGuardado}
+        onReintentar={reintentar}
+      />
 
       {/* ---------- Idioma y región ---------- */}
       <Tarjeta
@@ -72,13 +86,7 @@ export default function SettingsAgronomo() {
             etiqueta="Notificaciones push"
           />
         </Fila>
-        <Fila etiqueta="Notificaciones por correo">
-          <Toggle
-            activo={ajustes.correo}
-            onChange={(v) => cambiar('correo', v)}
-            etiqueta="Notificaciones por correo"
-          />
-        </Fila>
+        <CorreoNotificaciones />
 
         <p className="pt-5 text-sm text-gray-700">Eventos</p>
         <Fila etiqueta="Nuevas solicitudes asignadas" nota="Al recibir un caso para revisar">

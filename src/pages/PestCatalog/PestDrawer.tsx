@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import TagInput from '../../components/TagInput/TagInput'
 import Button from '../../components/Button/Button'
+import EliminarFichaModal from './EliminarFichaModal'
 import {
   clavesPlagas,
   componerProtocolo,
@@ -27,12 +28,14 @@ type Props = {
   // Sin ficha se crea una nueva; con ficha se ve y edita la existente
   ficha?: Plaga
   onGuardada: (ficha: Plaga) => void
+  onEliminada: () => void
   onClose: () => void
 }
 
-export default function PestDrawer({ ficha, onGuardada, onClose }: Props) {
+export default function PestDrawer({ ficha, onGuardada, onEliminada, onClose }: Props) {
   const queryClient = useQueryClient()
   const esNueva = !ficha
+  const [mostrarEliminar, setMostrarEliminar] = useState(false)
 
   // Identificación
   const [nombreComun, setNombreComun] = useState(ficha?.nombreComun ?? '')
@@ -68,11 +71,11 @@ export default function PestDrawer({ ficha, onGuardada, onClose }: Props) {
   // Cerrar con Escape
   useEffect(() => {
     const manejar = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape' && !mostrarEliminar) onClose()
     }
     window.addEventListener('keydown', manejar)
     return () => window.removeEventListener('keydown', manejar)
-  }, [onClose])
+  }, [onClose, mostrarEliminar])
 
   // Libera la URL temporal de la vista previa
   useEffect(() => {
@@ -90,7 +93,14 @@ export default function PestDrawer({ ficha, onGuardada, onClose }: Props) {
   const guardar = useMutation({
     mutationFn: async (datos: DatosFicha) => {
       const guardada = ficha ? await plagasService.actualizar(ficha.id, datos) : await plagasService.crear(datos)
-      return foto ? await plagasService.subirFoto(guardada.id, foto) : guardada
+      if (!foto) return guardada
+      try {
+        return await plagasService.subirFoto(guardada.id, foto)
+      } catch (error) {
+        // La ficha ya existe: el panel pasa a editarla y el reintento solo vuelve a subir la foto, sin duplicarla
+        alGuardar(guardada)
+        throw error
+      }
     },
     onSuccess: (guardada) => {
       setFoto(null)
@@ -154,7 +164,7 @@ export default function PestDrawer({ ficha, onGuardada, onClose }: Props) {
   const imagenActual = vistaPrevia ?? urlArchivo(ficha?.fotoUrl)
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
+    <div className="overlay-drawer fixed inset-0 z-50 flex justify-end">
       {/* Fondo */}
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
@@ -370,7 +380,8 @@ export default function PestDrawer({ ficha, onGuardada, onClose }: Props) {
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                       <Campo label="Ingrediente activo">
-                        <input
+                        <textarea
+                          rows={2}
                           value={protocolo.ingredienteActivo}
                           onChange={(e) => setProtocolo((p) => ({ ...p, ingredienteActivo: e.target.value }))}
                           placeholder="Oxicloruro de cobre"
@@ -378,7 +389,8 @@ export default function PestDrawer({ ficha, onGuardada, onClose }: Props) {
                         />
                       </Campo>
                       <Campo label="Dosis">
-                        <input
+                        <textarea
+                          rows={2}
                           value={protocolo.dosis}
                           onChange={(e) => setProtocolo((p) => ({ ...p, dosis: e.target.value }))}
                           placeholder="3 g/L"
@@ -386,7 +398,8 @@ export default function PestDrawer({ ficha, onGuardada, onClose }: Props) {
                         />
                       </Campo>
                       <Campo label="Periodo de carencia">
-                        <input
+                        <textarea
+                          rows={2}
                           value={protocolo.periodoCarencia}
                           onChange={(e) => setProtocolo((p) => ({ ...p, periodoCarencia: e.target.value }))}
                           placeholder="21 días"
@@ -434,6 +447,16 @@ export default function PestDrawer({ ficha, onGuardada, onClose }: Props) {
           {guardar.isSuccess && !guardar.isPending && (
             <p className="mb-3 text-sm text-agro-green">Ficha guardada.</p>
           )}
+          {ficha && !ficha.protegida && (
+            <button
+              type="button"
+              disabled={guardar.isPending || avalar.isPending || guardarProtocolo.isPending}
+              onClick={() => setMostrarEliminar(true)}
+              className="mb-3 w-full rounded-lg border border-red-200 py-2.5 text-sm font-medium text-red-600 transition enabled:hover:border-red-300 enabled:hover:bg-red-50 disabled:opacity-50"
+            >
+              Eliminar ficha
+            </button>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
@@ -448,6 +471,13 @@ export default function PestDrawer({ ficha, onGuardada, onClose }: Props) {
           </div>
         </footer>
       </aside>
+      {mostrarEliminar && ficha && !ficha.protegida && (
+        <EliminarFichaModal
+          ficha={ficha}
+          onClose={() => setMostrarEliminar(false)}
+          onEliminada={onEliminada}
+        />
+      )}
     </div>
   )
 }

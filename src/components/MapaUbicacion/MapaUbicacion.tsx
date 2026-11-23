@@ -1,0 +1,248 @@
+import { useEffect, useMemo, useRef } from 'react'
+import L from 'leaflet'
+import { Circle, LayersControl, MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet'
+import type { Marker as MarcadorLeaflet } from 'leaflet'
+import MarkerClusterGroup from 'react-leaflet-cluster'
+import 'leaflet/dist/leaflet.css'
+import 'react-leaflet-cluster/dist/assets/MarkerCluster.css'
+import 'react-leaflet-cluster/dist/assets/MarkerCluster.Default.css'
+import { codigoSolicitud, type EstadoSolicitud } from '../../api/solicitudes/solicitudes.service'
+import {
+  ETIQUETAS_CATEGORIA,
+  type Categoria,
+  type DeteccionConUbicacion,
+} from '../../api/detecciones/detecciones.service'
+import type { PuntoUbicacion } from '../../api/ubicacion/ubicacion.service'
+import { formatearFechaHora } from '../../utils/fechas'
+import { StatusBadge } from '../StatusBadge/StatusBadge'
+import { AccionesDeteccion } from './AccionesDeteccion'
+import { AccionesUbicacion, ResumenCoordenadas } from './AccionesUbicacion'
+import { CAPA_CALLES, CAPA_SATELITE, CENTRO_POR_DEFECTO, COLOR_CATEGORIA_MAPA, UMBRAL_CLUSTER } from './config'
+
+// Mismo semáforo que las insignias de StatusBadge (naranja, amarillo, azul, verde, rojo)
+// Una precisión absurda del GPS (p. ej. 10 000 km) no debe tapar el mapa con un círculo gigante
+const RADIO_MAXIMO_PRECISION_M = 5000
+
+const COLOR_ESTADO: Record<EstadoSolicitud, string> = {
+  Pendiente: '#f97316',
+  Enviada: '#eab308',
+  Asignada: '#2563eb',
+  Resuelta: '#15803d',
+  Descartada: '#dc2626',
+}
+
+function iconoDeEstado(estado: EstadoSolicitud) {
+  return L.divIcon({
+    className: '',
+    html: `<span style="display:block;width:18px;height:18px;border-radius:9999px;background:${COLOR_ESTADO[estado]};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.5)"></span>`,
+    iconSize: [18, 18],
+    iconAnchor: [9, 9],
+    popupAnchor: [0, -10],
+  })
+}
+
+function iconoDeDeteccion(categoria: Categoria) {
+  return L.divIcon({
+    className: '',
+    html: `<span style="display:block;width:14px;height:14px;transform:rotate(45deg);background:${COLOR_CATEGORIA_MAPA[categoria]};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.5)"></span>`,
+    iconSize: [14, 14],
+    iconAnchor: [7, 7],
+    popupAnchor: [0, -9],
+  })
+}
+
+type Props = {
+  puntos: PuntoUbicacion[]
+  // Capturas de la app con coordenadas (capa aparte de los casos)
+  detecciones?: DeteccionConUbicacion[]
+  // Clases de tamaño del contenedor (el mapa necesita una altura explícita)
+  className?: string
+  // Sin esta función no se muestra el botón "Ver caso"
+  onVerCaso?: (solicitudId: string) => void
+  // Zoom cuando hay un solo punto (detalle de una solicitud)
+  zoomPunto?: number
+  // Caso al que se acerca el mapa y cuyo popup se abre (viene de la bandeja de casos)
+  enfocarId?: string
+}
+
+export default function MapaUbicacion({
+  puntos,
+  detecciones = [],
+  className = 'h-[28rem] w-full',
+  onVerCaso,
+  zoomPunto = 16,
+  enfocarId,
+}: Props) {
+  const agrupar = puntos.length + detecciones.length > UMBRAL_CLUSTER
+  const marcadorEnfocado = useRef<MarcadorLeaflet | null>(null)
+  const crearMarcador = (p: PuntoUbicacion) => (
+    <Marker
+      key={p.solicitudId}
+      position={[p.latitud, p.longitud]}
+      icon={iconoDeEstado(p.estado)}
+      ref={(m) => {
+        if (p.solicitudId === enfocarId) marcadorEnfocado.current = m
+      }}
+    >
+      <Popup minWidth={230}>
+        <PopupCaso punto={p} onVerCaso={onVerCaso} />
+      </Popup>
+    </Marker>
+  )
+  // El caso enfocado va fuera del grupo: dentro de un cluster no se puede abrir su popup
+  const casoEnfocado = enfocarId ? puntos.find((p) => p.solicitudId === enfocarId) : undefined
+  const marcadoresCasos = puntos.filter((p) => p !== casoEnfocado).map(crearMarcador)
+  const marcadoresDetecciones = detecciones.map((d) => (
+    <Marker key={`deteccion-${d.id}`} position={[d.latitud, d.longitud]} icon={iconoDeDeteccion(d.categoria)}>
+      <Popup minWidth={210}>
+        <PopupDeteccion deteccion={d} />
+      </Popup>
+    </Marker>
+  ))
+  const marcadores = [...marcadoresCasos, ...marcadoresDetecciones]
+  const marcadorFueraDelGrupo = casoEnfocado ? crearMarcador(casoEnfocado) : null
+
+  return (
+    <MapContainer
+      center={CENTRO_POR_DEFECTO}
+      zoom={8}
+      scrollWheelZoom
+      className={`${className} z-0 overflow-hidden rounded-xl`}
+    >
+      <AjustarVista
+        puntos={puntos}
+        detecciones={detecciones}
+        zoomPunto={zoomPunto}
+        enfocar={casoEnfocado}
+        marcadorEnfocado={marcadorEnfocado}
+      />
+
+      {/* La atribución de la capa activa se muestra siempre (control de Leaflet, esquina inferior derecha) */}
+      <LayersControl position="topright">
+        <LayersControl.BaseLayer checked name="Satélite">
+          <TileLayer url={CAPA_SATELITE.url} attribution={CAPA_SATELITE.atribucion} maxZoom={19} />
+        </LayersControl.BaseLayer>
+        <LayersControl.BaseLayer name="Calles">
+          <TileLayer url={CAPA_CALLES.url} attribution={CAPA_CALLES.atribucion} maxZoom={19} />
+        </LayersControl.BaseLayer>
+      </LayersControl>
+
+      {/* Círculo del error del GPS: solo cuando la app lo reportó */}
+      {puntos.map(
+        (p) =>
+          p.precisionMetros != null &&
+          p.precisionMetros > 0 && (
+            <Circle
+              key={`precision-${p.solicitudId}`}
+              center={[p.latitud, p.longitud]}
+              radius={Math.min(p.precisionMetros, RADIO_MAXIMO_PRECISION_M)}
+              pathOptions={{ color: COLOR_ESTADO[p.estado], weight: 1, fillOpacity: 0.12 }}
+            />
+          ),
+      )}
+
+      {detecciones.map(
+        (d) =>
+          d.precisionMetros != null &&
+          d.precisionMetros > 0 && (
+            <Circle
+              key={`precision-deteccion-${d.id}`}
+              center={[d.latitud, d.longitud]}
+              radius={Math.min(d.precisionMetros, RADIO_MAXIMO_PRECISION_M)}
+              pathOptions={{ color: COLOR_CATEGORIA_MAPA[d.categoria], weight: 1, fillOpacity: 0.1, dashArray: '4' }}
+            />
+          ),
+      )}
+
+      {agrupar ? <MarkerClusterGroup chunkedLoading>{marcadores}</MarkerClusterGroup> : marcadores}
+      {marcadorFueraDelGrupo}
+    </MapContainer>
+  )
+}
+
+// Encuadra todos los puntos (o se acerca al único). Solo se recalcula cuando cambia el conjunto de puntos.
+function AjustarVista({
+  puntos,
+  detecciones,
+  zoomPunto,
+  enfocar,
+  marcadorEnfocado,
+}: {
+  puntos: PuntoUbicacion[]
+  detecciones: DeteccionConUbicacion[]
+  zoomPunto: number
+  enfocar?: PuntoUbicacion
+  marcadorEnfocado: React.RefObject<MarcadorLeaflet | null>
+}) {
+  const mapa = useMap()
+  const clave = useMemo(
+    () =>
+      [...puntos.map((p) => p.solicitudId), ...detecciones.map((d) => d.id), enfocar?.solicitudId ?? ''].join('|'),
+    [puntos, detecciones, enfocar],
+  )
+
+  useEffect(() => {
+    // Viene de "ver en el mapa": se acerca al caso y se abre su popup
+    if (enfocar) {
+      mapa.setView([enfocar.latitud, enfocar.longitud], 17)
+      const abrir = window.setTimeout(() => marcadorEnfocado.current?.openPopup(), 250)
+      return () => window.clearTimeout(abrir)
+    }
+
+    const coordenadas = [...puntos, ...detecciones].map((p) => [p.latitud, p.longitud] as [number, number])
+    if (coordenadas.length === 0) return
+    if (coordenadas.length === 1) {
+      mapa.setView(coordenadas[0], zoomPunto)
+      return
+    }
+    mapa.fitBounds(L.latLngBounds(coordenadas), {
+      padding: [32, 32],
+      maxZoom: 15,
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- "clave" ya resume el contenido de puntos
+  }, [mapa, clave, zoomPunto])
+
+  return null
+}
+
+function PopupCaso({ punto: p, onVerCaso }: { punto: PuntoUbicacion; onVerCaso?: (id: string) => void }) {
+  return (
+    <div className="space-y-2 text-xs text-gray-700">
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-mono font-semibold text-gray-900">{codigoSolicitud(p.solicitudId)}</span>
+        <StatusBadge estado={p.estado} />
+      </div>
+      <p>
+        {p.vereda} · {p.municipio}
+      </p>
+      <ResumenCoordenadas ubicacion={p} />
+      <AccionesUbicacion ubicacion={p} onVerCaso={onVerCaso} compacto />
+    </div>
+  )
+}
+
+function PopupDeteccion({ deteccion: d }: { deteccion: DeteccionConUbicacion }) {
+  return (
+    <div className="space-y-1.5 text-xs text-gray-700">
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-semibold text-gray-900">Detección</span>
+        <span className="rounded-md bg-gray-100 px-2 py-0.5 font-medium text-gray-600">
+          {ETIQUETAS_CATEGORIA[d.categoria]}
+        </span>
+      </div>
+      <p>
+        {d.clasePredicha ?? 'Sin clase'}
+        {d.confianza !== null && ` · ${(d.confianza * 100).toFixed(1)}%`}
+      </p>
+      <p>
+        {d.productorNombre ?? 'Sin perfil'} · {d.municipio}
+      </p>
+      <p>{formatearFechaHora(d.fecha)}</p>
+      <p className="font-mono">
+        {d.latitud.toFixed(5)}, {d.longitud.toFixed(5)}
+        {d.precisionMetros !== null && ` (± ${Math.round(d.precisionMetros)} m)`}
+      </p>
+      <AccionesDeteccion deteccion={d} compacto />
+    </div>
+  )
+}

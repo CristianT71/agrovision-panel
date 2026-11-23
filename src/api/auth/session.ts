@@ -1,3 +1,6 @@
+import { queryClient } from '../queryClient'
+import { registrarActividad } from './actividad'
+
 export type Rol = 'profesional' | 'administrador'
 
 // Rol tal como lo guarda la API
@@ -6,7 +9,6 @@ export type RolApi = 'admin' | 'agronomo' | 'productor'
 export type Sesion = {
   rol: Rol
   nombre: string
-  iniciales: string
   telefono: string
 }
 
@@ -16,6 +18,8 @@ const CLAVE_TOKEN = 'token'
 export function guardarSesion(sesion: Sesion, token: string) {
   localStorage.setItem(CLAVE, JSON.stringify(sesion))
   localStorage.setItem(CLAVE_TOKEN, token)
+  // Entrar es actividad: sin esto, el registro de una sesión anterior cerraría la nueva al instante
+  registrarActividad()
 }
 
 export function obtenerToken(): string | null {
@@ -50,8 +54,14 @@ export function obtenerSesion(): Sesion | null {
   }
 }
 
+// Cambia en cada cierre: las respuestas pedidas en una sesión anterior no deben tocar la caché de la nueva
+let generacion = 0
+export const generacionSesion = () => generacion
+
 // RF-01.8 — invalidar sesión y purgar datos locales
 export function cerrarSesion() {
+  generacion++
+  queryClient.clear()
   localStorage.removeItem(CLAVE)
   localStorage.removeItem(CLAVE_TOKEN)
 }
@@ -61,10 +71,6 @@ export function rolDesdeApi(rol: string): Rol | null {
   if (rol === 'agronomo') return 'profesional'
   if (rol === 'admin') return 'administrador'
   return null
-}
-
-export function rolParaApi(rol: Rol): RolApi {
-  return rol === 'profesional' ? 'agronomo' : 'admin'
 }
 
 // RF-01.7 — módulo principal según el nivel de acceso

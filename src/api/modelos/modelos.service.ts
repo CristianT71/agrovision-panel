@@ -31,7 +31,7 @@ export interface Metrica {
 export interface Modelo {
   id: string
   version: string
-  formato: 'tflite' | 'pt'
+  formato: 'tflite' | 'pt' | 'keras'
   canal: Canal
   // Publicado en canario o producción y sin kill-switch
   activo: boolean
@@ -41,6 +41,9 @@ export interface Modelo {
   sha256: string
   firmado: boolean
   numeroClases: number | null
+  clases: string[] | null
+  // Con etiquetas y calibración el modelo puede publicarse (el API las genera desde labels.txt)
+  artefactosCompletos: boolean
   creadoPor: string
   fechaCreacion: string
   fechaPublicacion: string | null
@@ -54,7 +57,7 @@ export interface Modelo {
 }
 
 // RF-09.4 — registro inmutable
-export type AccionAuditoria = 'subida' | 'metricas' | 'cambio_canal' | 'kill_switch'
+export type AccionAuditoria = 'subida' | 'artefactos' | 'metricas' | 'cambio_canal' | 'kill_switch'
 
 export interface EventoAuditoria {
   id: string
@@ -70,6 +73,8 @@ export interface DatosSubida {
   versionMinApp: string
   notas: string
   modelo: File
+  // labels.txt del entrenamiento: con el .tflite basta para dejarlo listo
+  etiquetasTxt: File | null
   etiquetas: File | null
   calibracion: File | null
 }
@@ -82,6 +87,8 @@ export interface DatosMetricas {
 // Deben coincidir con los límites de la API
 export const MAX_MB_MODELO = 100
 export const MAX_MB_JSON = 5
+// 100 MiB en 10 min exige ~1,4 Mbit/s sostenidos
+export const MINUTOS_SUBIDA_MODELO = 10
 export const MIN_JUSTIFICACION = 20
 export const MIN_PORCENTAJE_CANARIO = 1
 export const MAX_PORCENTAJE_CANARIO = 50
@@ -97,9 +104,11 @@ export const modelosService = {
     formulario.append('versionMinApp', datos.versionMinApp)
     if (datos.notas) formulario.append('notas', datos.notas)
     formulario.append('modelo', datos.modelo)
+    if (datos.etiquetasTxt) formulario.append('etiquetasTxt', datos.etiquetasTxt)
     if (datos.etiquetas) formulario.append('etiquetas', datos.etiquetas)
     if (datos.calibracion) formulario.append('calibracion', datos.calibracion)
-    return api.post<Modelo>('/modelos', formulario).then((r) => r.data)
+    // Hasta MAX_MB_MODELO: con los 30 s globales una conexión lenta cortaría una subida válida
+    return api.post<Modelo>('/modelos', formulario, { timeout: MINUTOS_SUBIDA_MODELO * 60_000 }).then((r) => r.data)
   },
   registrarMetricas: (id: string, datos: DatosMetricas) =>
     api.put<Modelo>(`/modelos/${id}/metricas`, datos).then((r) => r.data),

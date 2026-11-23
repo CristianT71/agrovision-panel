@@ -1,5 +1,7 @@
 import { useEffect } from 'react'
 import { codigoSolicitud, type Solicitud } from '../../api/solicitudes/solicitudes.service'
+import TarjetaUbicacion from '../../components/MapaUbicacion/TarjetaUbicacion'
+import AutorizacionDatos from '../../components/AutorizacionDatos'
 import CanalCoordinacion from '../RequestDetail/CanalCoordinacion'
 import PermisoContacto from './PermisoContacto'
 
@@ -19,7 +21,7 @@ export default function CaseChatDrawer({ solicitud, nombreAgronomo, onClose }: P
   }, [onClose])
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
+    <div className="overlay-drawer fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
       <aside className="relative flex h-full w-full max-w-md flex-col bg-white shadow-2xl">
@@ -50,6 +52,13 @@ export default function CaseChatDrawer({ solicitud, nombreAgronomo, onClose }: P
 
         {/* RF-08.7 — el canal solo funciona con un agrónomo vinculado */}
         <div className="flex-1 overflow-y-auto">
+          {/* Dónde se tomó la foto: la API decide si el administrador puede verla */}
+          <div className="border-b border-gray-100 p-3">
+            <TarjetaUbicacion solicitudId={solicitud.id} tieneUbicacion={solicitud.tieneUbicacion} />
+          </div>
+          <div className="border-b border-gray-100 p-3">
+            <AutorizacionDatos solicitudId={solicitud.id} />
+          </div>
           <CanalCoordinacion
             solicitudId={solicitud.id}
             yo="admin"

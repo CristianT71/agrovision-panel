@@ -6,12 +6,9 @@ import { authService } from '../../api/auth/auth.service'
 import { agronomosService } from '../../api/agronomos/agronomos.service'
 import { mensajeDeError } from '../../api/axios'
 import {
-  calcularIniciales,
   guardarSesion,
   rolDesdeApi,
-  rolParaApi,
   rutaInicial,
-  type Rol,
 } from '../../api/auth/session'
 
 const PREFIXES = [
@@ -25,7 +22,6 @@ const PREFIXES = [
 export default function Login() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
-  const [role, setRole] = useState<Rol>('profesional')
   const [dial, setDial] = useState('+57')
   const [phone, setPhone] = useState('')
   const [step, setStep] = useState<'enterPhone' | 'enterOtp'>('enterPhone')
@@ -35,6 +31,8 @@ export default function Login() {
     params.get('sesion') === 'expirada' ? 'Tu sesión expiró. Ingresa de nuevo.' : null,
   )
   const [countdown, setCountdown] = useState(0)
+  // Teléfono al que realmente se envió el código: se valida y reenvía contra este, no contra lo que se edite después
+  const [destino, setDestino] = useState('')
 
   const inputsRef = useRef<Array<HTMLInputElement | null>>([])
 
@@ -98,18 +96,16 @@ export default function Login() {
 
   /* ---------- Peticiones ---------- */
 
-  const enviarCodigo = async () => {
+  const enviarCodigo = async (telefono = formattedPhone) => {
     setError(null)
-    if (!isPhoneValid) {
+    if (telefono === formattedPhone && !isPhoneValid) {
       setError('Número inválido')
       return
     }
     setLoading(true)
     try {
-      const { esperaSegundos } = await authService.solicitarOtp({
-        telefono: formattedPhone,
-        rolSeleccionado: rolParaApi(role),
-      })
+      const { esperaSegundos } = await authService.solicitarOtp({ telefono })
+      setDestino(telefono)
       setStep('enterOtp')
       setCountdown(esperaSegundos ?? 30)
       setTimeout(() => inputsRef.current[0]?.focus(), 50)
@@ -123,7 +119,7 @@ export default function Login() {
   const reenviarCodigo = async () => {
     if (countdown > 0) return
     setOtp('')
-    await enviarCodigo()
+    await enviarCodigo(destino)
   }
 
   const validarCodigo = async () => {
@@ -134,12 +130,14 @@ export default function Login() {
       return
     }
     setLoading(true)
+    let tokenAbierto: string | null = null
     try {
       const { accessToken, usuario } = await authService.validarOtp({
-        telefono: formattedPhone,
+        telefono: destino,
         codigo,
-        rolSeleccionado: rolParaApi(role),
       })
+
+      tokenAbierto = accessToken
 
       // El rol de la sesión es el que confirma la API, no el que se eligió en pantalla
       const rol = rolDesdeApi(usuario.rol)
@@ -153,15 +151,18 @@ export default function Login() {
         rol === 'profesional' ? (await agronomosService.miPerfil(accessToken)).nombre : 'Administrador'
 
       guardarSesion(
-        { rol, nombre, iniciales: calcularIniciales(nombre), telefono: usuario.telefono },
+        { rol, nombre, telefono: usuario.telefono },
         accessToken,
       )
 
       // RF-01.7 — enrutar según el rol
       navigate(rutaInicial(rol), { replace: true })
+      tokenAbierto = null
     } catch (err: unknown) {
       setError(mensajeDeError(err, 'No se pudo validar el código.'))
     } finally {
+      // Si algo falló después de abrir la sesión en el servidor, no se deja huérfana
+      if (tokenAbierto) authService.cerrarSesion(tokenAbierto).catch(() => {})
       setLoading(false)
     }
   }
@@ -177,35 +178,15 @@ export default function Login() {
             Ingresa tu número de celular para recibir un código de verificación.
           </p>
 
-          {/* RF-01.2 — selección de rol */}
-          <div className="mt-8">
-            <label className="text-sm font-medium text-gray-700">Acceder como</label>
-            <div className="mt-2 grid grid-cols-2 gap-3">
-              <Button
-                variant="toggle"
-                active={role === 'profesional'}
-                onClick={() => setRole('profesional')}
-              >
-                Agrónomo
-              </Button>
-              <Button
-                variant="toggle"
-                active={role === 'administrador'}
-                onClick={() => setRole('administrador')}
-              >
-                Administrador
-              </Button>
-            </div>
-          </div>
-
           {/* RF-01.3 — prefijos internacionales */}
-          <div className="mt-6">
+          <div className="mt-8">
             <label htmlFor="phone" className="text-sm font-medium text-gray-700">
               Número de celular
             </label>
             <div className="mt-2 flex gap-2">
               <select
                 value={dial}
+                disabled={loading}
                 onChange={(e) => setDial(e.target.value)}
                 className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 focus:border-agro-green focus:outline-none"
               >
@@ -221,6 +202,7 @@ export default function Login() {
                 inputMode="numeric"
                 placeholder="311 452 8801"
                 value={phone}
+                disabled={loading}
                 onChange={(e) => setPhone(e.target.value)}
                 className="flex-1 rounded-lg border border-gray-200 px-4 py-2.5 text-sm placeholder:text-gray-400 focus:border-agro-green focus:outline-none"
               />
@@ -228,7 +210,7 @@ export default function Login() {
           </div>
 
           <div className="mt-6">
-            <Button disabled={!isPhoneValid || loading} onClick={enviarCodigo}>
+            <Button disabled={!isPhoneValid || loading} onClick={() => enviarCodigo()}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
                 <path
                   d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1Z"
@@ -261,7 +243,7 @@ export default function Login() {
           <h2 className="mt-5 text-3xl font-bold text-gray-900">Verificar código</h2>
           <p className="mt-1 text-sm text-gray-500">
             Enviamos un código de 6 dígitos a{' '}
-            <strong className="text-gray-900">{formattedPhone}</strong>
+            <strong className="text-gray-900">{destino}</strong>
           </p>
 
           {/* RF-01.4 — 6 casillas secuenciales */}

@@ -1,19 +1,44 @@
+import { lazy as lazyReact, type ComponentType } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Login from './pages/Login/Login'
 import RequestAccess from './pages/RequestAccess/RequestAccess'
+import Descargas from './pages/Descargas/Descargas'
+import Docs from './pages/Docs/Docs'
 import PanelLayout from './layouts/PanelLayout/PanelLayout'
 import RutaProtegida from './layouts/RutaProtegida/RutaProtegida'
-import RequestsInbox from './pages/RequestsInbox/RequestsInbox'
-import RequestDetail from './pages/RequestDetail/RequestDetail'
-import PestCatalog from './pages/PestCatalog/PestCatalog'
-import Profile from './pages/Profile/Profile'
-import Settings from './pages/Settings/Settings'
-import Dashboard from './pages/Dashboard/Dashboard'
-import CasesInbox from './pages/CasesInbox/CasesInbox'
-import AiModels from './pages/AiModels/AiModels'
-import Accounts from './pages/Accounts/Accounts'
-import DetectionsMonitor from './pages/DetectionsMonitor/DetectionsMonitor'
 import { obtenerSesion, rutaInicial } from './api/auth/session'
+
+// Cada pantalla del panel se descarga al entrar (RNF-03.2/03.3). Si tras un despliegue el archivo viejo
+// ya no existe, se recarga la página una vez para tomar la versión nueva.
+function lazy<T extends ComponentType<object>>(cargar: () => Promise<{ default: T }>) {
+  return lazyReact(() =>
+    cargar().catch((error: unknown) => {
+      const clave = 'agrovision_recarga_chunk'
+      if (sessionStorage.getItem(clave) !== '1') {
+        sessionStorage.setItem(clave, '1')
+        window.location.reload()
+        return new Promise<never>(() => {})
+      }
+      sessionStorage.removeItem(clave)
+      throw error
+    }),
+  )
+}
+
+const RequestsInbox = lazy(() => import('./pages/RequestsInbox/RequestsInbox'))
+const RequestDetail = lazy(() => import('./pages/RequestDetail/RequestDetail'))
+const PestCatalog = lazy(() => import('./pages/PestCatalog/PestCatalog'))
+const Profile = lazy(() => import('./pages/Profile/Profile'))
+const Settings = lazy(() => import('./pages/Settings/Settings'))
+const Dashboard = lazy(() => import('./pages/Dashboard/Dashboard'))
+const CasesInbox = lazy(() => import('./pages/CasesInbox/CasesInbox'))
+const AiModels = lazy(() => import('./pages/AiModels/AiModels'))
+const Accounts = lazy(() => import('./pages/Accounts/Accounts'))
+const DetectionsMonitor = lazy(() => import('./pages/DetectionsMonitor/DetectionsMonitor'))
+const CasesMap = lazy(() => import('./pages/CasesMap/CasesMap'))
+const Vuelos = lazyReact(() => import('./pages/Vuelos/Vuelos'))
+const VueloDetalle = lazyReact(() => import('./pages/Vuelos/VueloDetalle'))
+const ReglasZona = lazy(() => import('./pages/ReglasZona/ReglasZona'))
 
 function Inicio() {
   const sesion = obtenerSesion()
@@ -28,6 +53,10 @@ function App() {
 
         <Route path="/login" element={<Login />} />
         <Route path="/solicitar-acceso" element={<RequestAccess />} />
+        {/* Descarga pública de la app: sin sesión y sin enlace desde ningún menú */}
+        <Route path="/descargas" element={<Descargas />} />
+        {/* Referencia pública de la API: sin sesión y sin enlace desde los menús */}
+        <Route path="/docs" element={<Docs />} />
 
         <Route element={<RutaProtegida />}>
           <Route element={<PanelLayout />}>
@@ -45,10 +74,15 @@ function App() {
               <Route path="/modelos" element={<AiModels />} />
               <Route path="/cuentas" element={<Accounts />} />
               <Route path="/detecciones" element={<DetectionsMonitor />} />
+              <Route path="/mapa" element={<CasesMap />} />
+              <Route path="/vuelos" element={<Vuelos />} />
+              <Route path="/vuelos/:id" element={<VueloDetalle />} />
             </Route>
 
             {/* RF-02.4 — comunes a ambos roles */}
             <Route path="/perfil" element={<Profile />} />
+            {/* Reglas de zona: admin y agrónomo (el botón Aprobar solo lo ve el agrónomo) */}
+            <Route path="/reglas-zona" element={<ReglasZona />} />
             <Route path="/ajustes" element={<Settings />} />
           </Route>
         </Route>

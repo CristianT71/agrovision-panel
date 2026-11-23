@@ -26,12 +26,18 @@ export interface Solicitud {
   municipio: string
   vereda: string
   finca: string
-  confianzaIa: number
+  confianzaIa: number | null
   modeloVersionId: string | null
+  // Solo viene en el detalle: versión legible del modelo que usa el celular (p. ej. 1.3.2)
+  modeloVersion?: string | null
+  // Solo en el detalle: autorización de datos personales (Ley 1581) del productor; null si no la tiene
+  autorizacionDatos?: { version: string; fecha: string | null } | null
   respuestaProfesional: string | null
   tipoResultado: TipoResultado | null
   plagaIdentificada: string | null
   fechaResolucion: string | null
+  // La API ya no envía coordenadas aquí: este aviso dice si se pueden pedir en /solicitudes/:id/ubicacion
+  tieneUbicacion: boolean
 }
 
 // RF-04.2 — ángulo con el que la app tomó cada foto
@@ -94,7 +100,6 @@ export interface FiltrosSolicitudes {
 
 // Deben coincidir con los de la API
 export const LIMITE_SOLICITUDES = 20
-export const MAX_LIMITE_SOLICITUDES = 100
 
 export interface PaginaSolicitudes {
   datos: Solicitud[]
@@ -194,9 +199,13 @@ export const solicitudesService = {
   descargarFoto: (id: string, fotoId: string) =>
     api.get<Blob>(`/solicitudes/${id}/fotos/${fotoId}`, { responseType: 'blob' }).then((r) => r.data),
   // RF-08.3 — solo administrador. La API notifica al agrónomo y responde 409 si otra persona asignó a la vez.
-  asignar: (id: string, agronomoId: string) =>
+  // confirmarSobrecarga: el administrador acepta pasar de la carga máxima configurada en Ajustes (RF-08.4)
+  asignar: (id: string, agronomoId: string, confirmarSobrecarga = false) =>
     api
-      .patch<{ message: string; solicitud: Solicitud }>(`/solicitudes/${id}/asignar`, { agronomoId })
+      .patch<{ message: string; solicitud: Solicitud }>(`/solicitudes/${id}/asignar`, {
+        agronomoId,
+        ...(confirmarSobrecarga && { confirmarSobrecarga }),
+      })
       .then((r) => r.data),
 }
 
@@ -218,7 +227,9 @@ export const clavesSolicitudes = {
 }
 
 // La API puede enviar la confianza como fracción (0.87) o como porcentaje (87)
-export function porcentajeConfianza(valor: number): number {
+// null = la solicitud no trae un análisis de IA con confianza (sin captura, o el modelo no se decidió)
+export function porcentajeConfianza(valor: number | null): number | null {
+  if (valor === null) return null
   return Math.round(valor <= 1 ? valor * 100 : valor)
 }
 
@@ -229,5 +240,5 @@ export function codigoSolicitud(id: string): string {
 
 // El id de la versión del modelo es un UUID: en pantalla basta con el inicio
 export function versionModeloCorta(modeloVersionId: string | null): string {
-  return modeloVersionId ? `v-${modeloVersionId.slice(0, 8)}` : 'Sin versión'
+  return modeloVersionId ? `v-${modeloVersionId.slice(0, 8)}` : 'Sin análisis de IA'
 }

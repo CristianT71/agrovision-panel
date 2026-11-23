@@ -80,18 +80,39 @@ export function Selector({
   )
 }
 
-export function AvisoGuardado() {
-  return (
-    <div
-      role="status"
-      className="mt-5 flex items-center gap-2.5 rounded-xl bg-[#dcf4e4] px-4 py-3 text-sm font-semibold text-agro-green"
-    >
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="h-4 w-4 shrink-0">
-        <path d="M5 12.5l4.5 4.5L19 7" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-      Configuración guardada
-    </div>
-  )
+// Estado de la carga y del último guardado de los ajustes
+export function EstadoAjustes({
+  cargando,
+  errorCarga,
+  errorGuardado,
+  onReintentar,
+}: {
+  cargando: boolean
+  errorCarga: string | null
+  errorGuardado: string | null
+  onReintentar: () => void
+}) {
+  if (cargando) {
+    return <p className="mt-5 text-sm text-gray-500">Cargando ajustes...</p>
+  }
+  if (errorCarga) {
+    return (
+      <div role="alert" className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+        {errorCarga}{' '}
+        <button type="button" onClick={onReintentar} className="underline">
+          Reintentar
+        </button>
+      </div>
+    )
+  }
+  if (errorGuardado) {
+    return (
+      <div role="alert" className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+        {errorGuardado} Se restauró el valor anterior.
+      </div>
+    )
+  }
+  return null
 }
 
 export function InfoSistema({ datos }: { datos: { etiqueta: string; valor: string }[] }) {

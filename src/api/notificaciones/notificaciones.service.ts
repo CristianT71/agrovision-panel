@@ -27,6 +27,15 @@ export const notificacionesService = {
   noLeidas: () => api.get<{ total: number }>('/notificaciones/no-leidas').then((r) => r.data),
   marcarLeida: (id: string) => api.patch(`/notificaciones/${id}/leida`).then((r) => r.data),
   marcarTodas: () => api.patch('/notificaciones/leidas').then((r) => r.data),
+  // Ajuste "Notificaciones por correo"
+  obtenerCorreo: () => api.get<PreferenciaCorreo>('/notificaciones/correo').then((r) => r.data),
+  guardarCorreo: (datos: { activo: boolean; correo: string }) =>
+    api.put<PreferenciaCorreo>('/notificaciones/correo', datos).then((r) => r.data),
+}
+
+export interface PreferenciaCorreo {
+  activo: boolean
+  correo: string | null
 }
 
 export const clavesNotificaciones = {

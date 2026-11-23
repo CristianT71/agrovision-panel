@@ -17,6 +17,7 @@ import { calcularIniciales } from '../../api/auth/session'
 import { mensajeDeError } from '../../api/axios'
 import { formatearFecha } from '../../utils/fechas'
 import { tamanoLegible } from '../../utils/archivos'
+import { VERSION_POLITICA_DATOS } from '../Settings/politicaDatos'
 
 type Pestana = 'productores' | 'agronomos'
 
@@ -207,7 +208,7 @@ export default function Accounts() {
       <div className="mt-5 overflow-hidden rounded-2xl bg-white">
         <div className="overflow-x-auto">
           {pestana === 'productores' ? (
-            <table className="w-full min-w-[900px] text-sm">
+            <table className="w-full min-w-[1050px] text-sm">
               <thead>
                 <tr className="border-b border-gray-100 text-left text-xs uppercase tracking-wider text-gray-400">
                   <th className="px-5 py-4 font-medium">Productor / Finca</th>
@@ -215,13 +216,14 @@ export default function Accounts() {
                   <th className="px-5 py-4 font-medium">Teléfono</th>
                   <th className="px-5 py-4 font-medium">Estado</th>
                   <th className="px-5 py-4 font-medium">Consentimiento</th>
+                  <th className="px-5 py-4 font-medium">Política de datos</th>
                   <th className="px-5 py-4 font-medium">Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 <FilaEstado
                   consulta={productores}
-                  columnas={6}
+                  columnas={7}
                   visibles={productoresVisibles.length}
                   textoCarga="Cargando productores..."
                   textoError="No se pudieron cargar los productores."
@@ -265,6 +267,11 @@ export default function Accounts() {
                       ) : (
                         <span className="text-gray-400">No</span>
                       )}
+                    </td>
+
+                    {/* Habeas data — prueba de la autorización de tratamiento de datos */}
+                    <td className="px-5 py-4">
+                      <EstadoPolitica version={p.politicaDatosVersion ?? null} fecha={p.politicaDatosFecha ?? null} />
                     </td>
 
                     {/* Acciones siempre visibles (en pantallas táctiles no existe "pasar el mouse"). Otorgar solo lo hace el productor desde la app. */}
@@ -493,6 +500,32 @@ function textosAccion(accion: Accion): {
   }
 }
 
+/* ---------- Habeas data: estado de la autorización de datos ---------- */
+
+function EstadoPolitica({ version, fecha }: { version: string | null; fecha: string | null }) {
+  if (!version) {
+    return (
+      <span title="No ha autorizado el tratamiento de sus datos, o lo revocó" className="text-gray-400">
+        Sin aceptar
+      </span>
+    )
+  }
+  const vigente = version === VERSION_POLITICA_DATOS
+  return (
+    <div>
+      <span
+        title={vigente ? undefined : `La versión vigente es la ${VERSION_POLITICA_DATOS}: se le pedirá aceptarla de nuevo`}
+        className={`rounded-md px-2 py-0.5 text-xs font-medium ${
+          vigente ? 'bg-[#e8f7ee] text-agro-green' : 'bg-amber-50 text-amber-700'
+        }`}
+      >
+        {vigente ? `Aceptada v${version}` : `Versión anterior v${version}`}
+      </span>
+      {fecha && <p className="mt-1 text-xs text-gray-400">{formatearFecha(fecha)}</p>}
+    </div>
+  )
+}
+
 /* ---------- Filas de carga, error y lista vacía ---------- */
 
 function FilaEstado({
@@ -569,7 +602,7 @@ function ModalConfirmacion({
   onCerrar: () => void
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="overlay-modal fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onCerrar} />
       <div className="relative w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="px-6 pt-6">
@@ -630,7 +663,7 @@ function ModalDocumentos({ agronomo, onCerrar }: { agronomo: AgronomoResumen; on
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="overlay-modal fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onCerrar} />
       <div className="relative w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="flex items-start justify-between gap-4 px-6 pt-6">
@@ -639,6 +672,15 @@ function ModalDocumentos({ agronomo, onCerrar }: { agronomo: AgronomoResumen; on
             <p className="mt-1 text-sm text-gray-500">
               {agronomo.nombre} · tarjeta {agronomo.tarjetaProfesional}
             </p>
+            {detalle.data && (
+              <p className="mt-1 text-xs text-gray-500">
+                {detalle.data.terminosVersion
+                  ? `Aceptó los términos y condiciones v${detalle.data.terminosVersion}${
+                      detalle.data.terminosFecha ? ` · ${formatearFecha(detalle.data.terminosFecha)}` : ''
+                    }`
+                  : 'Sin registro de aceptación de términos (cuenta anterior)'}
+              </p>
+            )}
           </div>
           <button type="button" title="Cerrar" onClick={onCerrar} className="text-gray-400 hover:text-gray-600">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">

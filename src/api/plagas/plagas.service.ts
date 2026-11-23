@@ -19,6 +19,8 @@ export interface AvalPlaga {
 
 export interface Plaga {
   id: string
+  // Compatibilidad con respuestas anteriores: si falta, se trata como false.
+  protegida?: boolean
   nombreComun: string
   nombreCientifico: string | null
   tipo: TipoPlaga
@@ -56,6 +58,7 @@ export const plagasService = {
   listar: (filtros: FiltrosPlagas) => api.get<Plaga[]>('/plagas', { params: filtros }).then((r) => r.data),
   crear: (datos: DatosFicha) => api.post<Plaga>('/plagas', datos).then((r) => r.data),
   actualizar: (id: string, datos: Partial<DatosFicha>) => api.patch<Plaga>(`/plagas/${id}`, datos).then((r) => r.data),
+  eliminar: (id: string): Promise<void> => api.delete<void>(`/plagas/${id}`).then(() => undefined),
   // RF-05.7 — firma el agrónomo autenticado
   avalar: (id: string) => api.post<Plaga>(`/plagas/${id}/avales`).then((r) => r.data),
   // RF-05.6 — la API lo rechaza si la ficha no tiene aval
@@ -70,6 +73,7 @@ export const plagasService = {
 
 export const clavesPlagas = {
   todas: ['plagas'] as const,
+  listas: ['plagas', 'lista'] as const,
   lista: (filtros: FiltrosPlagas) => ['plagas', 'lista', filtros] as const,
 }
 
@@ -95,20 +99,27 @@ export function componerProtocolo(protocolo: ProtocoloQuimico): string {
     .join('\n')
 }
 
+// No descarta nada: las líneas sin etiqueta (continuaciones o texto de otra herramienta) se suman al campo
+// anterior, o al ingrediente activo si van antes de cualquier etiqueta; volver a guardar las conserva
 export function descomponerProtocolo(texto: string | null): ProtocoloQuimico {
   const protocolo: ProtocoloQuimico = { ingredienteActivo: '', dosis: '', periodoCarencia: '' }
   if (!texto) return protocolo
 
+  const agregar = (clave: keyof ProtocoloQuimico, valor: string) => {
+    protocolo[clave] = protocolo[clave] ? `${protocolo[clave]}\n${valor}` : valor
+  }
+
+  let actual: keyof ProtocoloQuimico = 'ingredienteActivo'
   for (const linea of texto.split('\n')) {
     const clave = (Object.keys(ETIQUETAS_PROTOCOLO) as (keyof ProtocoloQuimico)[]).find((c) =>
       linea.startsWith(`${ETIQUETAS_PROTOCOLO[c]}:`),
     )
-    if (clave) protocolo[clave] = linea.slice(ETIQUETAS_PROTOCOLO[clave].length + 1).trim()
-  }
-
-  // Texto que no sigue el formato (ej. escrito desde otra herramienta): se conserva completo
-  if (!protocolo.ingredienteActivo && !protocolo.dosis && !protocolo.periodoCarencia) {
-    protocolo.ingredienteActivo = texto
+    if (clave) {
+      actual = clave
+      agregar(clave, linea.slice(ETIQUETAS_PROTOCOLO[clave].length + 1).trim())
+    } else {
+      agregar(actual, linea)
+    }
   }
 
   return protocolo
