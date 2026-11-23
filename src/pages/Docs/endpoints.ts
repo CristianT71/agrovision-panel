@@ -77,7 +77,7 @@ export const ENDPOINTS: Endpoint[] = [
     respuestas: [
       { codigo: '200', descripcion: 'Lista de fichas.' },
       { codigo: '400', descripcion: 'Un parámetro no es válido (por ejemplo, un tipo desconocido).' },
-      { codigo: '429', descripcion: 'Superaste el límite de 60 peticiones por minuto.' },
+      { codigo: '429', descripcion: 'Superaste el límite de 300 peticiones por minuto.' },
     ],
     ejemploRuta: '/catalog?tipo=deficiencia',
     ejemploRespuesta: `{
@@ -114,7 +114,7 @@ export const ENDPOINTS: Endpoint[] = [
     respuestas: [
       { codigo: '200', descripcion: 'La ficha.' },
       { codigo: '404', descripcion: 'No existe una ficha con ese id o clave.' },
-      { codigo: '429', descripcion: 'Superaste el límite de 60 peticiones por minuto.' },
+      { codigo: '429', descripcion: 'Superaste el límite de 300 peticiones por minuto.' },
     ],
     ejemploRuta: '/catalog/Deficiencia_Zinc',
     ejemploRespuesta: FICHA_EJEMPLO,

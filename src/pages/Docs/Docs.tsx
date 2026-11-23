@@ -417,7 +417,7 @@ export default function Docs() {
               <Tabla cabeceras={['Concepto', 'Detalle']}>
                 <tr className="border-b border-gray-50 align-top">
                   <td className="py-3 pr-4 font-medium text-gray-900">Límite</td>
-                  <td className="py-3 text-gray-600">60 peticiones por minuto por dirección IP. Al superarlo responde 429.</td>
+                  <td className="py-3 text-gray-600">300 peticiones por minuto por dirección IP en el catálogo y 60 en las reglas de zona. Al superarlo responde 429.</td>
                 </tr>
                 <tr className="border-b border-gray-50 align-top">
                   <td className="py-3 pr-4 font-medium text-gray-900">Encabezados</td>

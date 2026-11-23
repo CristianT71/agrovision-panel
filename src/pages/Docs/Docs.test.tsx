@@ -21,7 +21,7 @@ describe('Docs', () => {
   })
 
   it('explica el límite de peticiones y los errores', () => {
-    expect(html).toContain('60 peticiones por minuto')
+    expect(html).toContain('300 peticiones por minuto')
     expect(html).toContain('Errores')
   })
 

@@ -3,7 +3,7 @@
   "info": {
     "title": "AgroVisión API pública",
     "version": "1.0.0",
-    "description": "Catálogo de enfermedades, plagas y deficiencias del café y reglas de zona de vigilancia. Solo lectura, sin autenticación, 60 peticiones por minuto por IP."
+    "description": "Catálogo de enfermedades, plagas y deficiencias del café y reglas de zona de vigilancia. Solo lectura, sin autenticación, 300 peticiones por minuto por IP en el catálogo (60 en las reglas de zona)."
   },
   "servers": [
     {
