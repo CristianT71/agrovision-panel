@@ -2,6 +2,7 @@ import { lazy as lazyReact, type ComponentType } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Login from './pages/Login/Login'
 import RequestAccess from './pages/RequestAccess/RequestAccess'
+import Descargas from './pages/Descargas/Descargas'
 import PanelLayout from './layouts/PanelLayout/PanelLayout'
 import RutaProtegida from './layouts/RutaProtegida/RutaProtegida'
 import { obtenerSesion, rutaInicial } from './api/auth/session'
@@ -51,6 +52,8 @@ function App() {
 
         <Route path="/login" element={<Login />} />
         <Route path="/solicitar-acceso" element={<RequestAccess />} />
+        {/* Descarga pública de la app: sin sesión y sin enlace desde ningún menú */}
+        <Route path="/descargas" element={<Descargas />} />
 
         <Route element={<RutaProtegida />}>
           <Route element={<PanelLayout />}>
