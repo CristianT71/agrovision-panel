@@ -13,6 +13,11 @@ describe('Descargas', () => {
     expect(html).toContain('Descargar para Android')
   })
 
+  it('usa el logo de CoffeeCheck y no el de AgroVisión', () => {
+    expect(html).toContain('src="/logo-coffecheck.png"')
+    expect(html).not.toContain('logo-agrovision')
+  })
+
   it('explica cómo instalarla', () => {
     expect(html).toContain('Cómo instalarla')
   })
