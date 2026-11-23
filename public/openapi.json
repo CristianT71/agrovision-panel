@@ -1,0 +1,363 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "AgroVisión API pública",
+    "version": "1.0.0",
+    "description": "Catálogo de enfermedades, plagas y deficiencias del café y reglas de zona de vigilancia. Solo lectura, sin autenticación, 60 peticiones por minuto por IP."
+  },
+  "servers": [
+    {
+      "url": "https://agrovision.sbs/api/public/v1"
+    }
+  ],
+  "paths": {
+    "/catalog": {
+      "get": {
+        "summary": "Listar fichas",
+        "tags": [
+          "Catálogo"
+        ],
+        "parameters": [
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "enfermedad",
+                "plaga",
+                "deficiencia",
+                "sano"
+              ]
+            },
+            "description": "Filtra por tipo de ficha"
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Busca en nombre común, científico y sinónimos"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de fichas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "total": {
+                      "type": "integer"
+                    },
+                    "fichas": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Ficha"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Un parámetro no es válido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite de peticiones superado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/catalog/{id}": {
+      "get": {
+        "summary": "Obtener una ficha",
+        "tags": [
+          "Catálogo"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "UUID o clave de la ficha, por ejemplo Enfermedad_Roya",
+            "example": "Deficiencia_Zinc"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "La ficha",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ficha"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe una ficha con ese id o clave",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite de peticiones superado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/zone-rules": {
+      "get": {
+        "summary": "Regla de zona de vigilancia activa",
+        "tags": [
+          "Reglas de zona"
+        ],
+        "parameters": [
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 50,
+              "pattern": "^[a-z0-9_-]+$"
+            },
+            "example": "roya"
+          },
+          {
+            "name": "If-None-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ETag de una respuesta anterior"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "La regla activa",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglaZona"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No hay una regla activa para ese tipo"
+          },
+          "304": {
+            "description": "La regla no cambió"
+          },
+          "400": {
+            "description": "Falta tipo o no es válido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Ficha": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "clave": {
+            "type": "string",
+            "example": "Deficiencia_Zinc",
+            "description": "Identificador estable y legible"
+          },
+          "nombreComun": {
+            "type": "string"
+          },
+          "nombreCientifico": {
+            "type": "string",
+            "nullable": true
+          },
+          "sinonimos": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "enfermedad",
+              "plaga",
+              "deficiencia",
+              "sano"
+            ]
+          },
+          "cultivo": {
+            "type": "string",
+            "example": "cafe"
+          },
+          "descripcion": {
+            "type": "string"
+          },
+          "sintomas": {
+            "type": "string"
+          },
+          "organosAfectados": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "hospederos": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "fotoUrl": {
+            "type": "string",
+            "nullable": true,
+            "format": "uri"
+          },
+          "avalada": {
+            "type": "boolean",
+            "description": "true si un agrónomo revisó y firmó la ficha"
+          },
+          "medidasContencion": {
+            "type": "string",
+            "nullable": true,
+            "description": "Solo con texto si avalada es true"
+          },
+          "protocoloQuimico": {
+            "type": "string",
+            "nullable": true,
+            "description": "Solo con texto si avalada es true"
+          },
+          "modelo": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "clase": {
+                "type": "string"
+              },
+              "desdeVersion": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "ReglaZona": {
+        "type": "object",
+        "properties": {
+          "tipoEnfermedad": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer"
+          },
+          "calibrada": {
+            "type": "boolean"
+          },
+          "filas": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "orden": {
+                  "type": "integer"
+                },
+                "sevMax": {
+                  "type": "number"
+                },
+                "incMax": {
+                  "type": "number"
+                },
+                "radioMinM": {
+                  "type": "number"
+                },
+                "radioMaxM": {
+                  "type": "number"
+                }
+              }
+            }
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "statusCode": {
+            "type": "integer"
+          },
+          "timestamp": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "metodo": {
+            "type": "string"
+          },
+          "mensaje": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Login from './pages/Login/Login'
 import RequestAccess from './pages/RequestAccess/RequestAccess'
 import Descargas from './pages/Descargas/Descargas'
+import Docs from './pages/Docs/Docs'
 import PanelLayout from './layouts/PanelLayout/PanelLayout'
 import RutaProtegida from './layouts/RutaProtegida/RutaProtegida'
 import { obtenerSesion, rutaInicial } from './api/auth/session'
@@ -54,6 +55,8 @@ function App() {
         <Route path="/solicitar-acceso" element={<RequestAccess />} />
         {/* Descarga pública de la app: sin sesión y sin enlace desde ningún menú */}
         <Route path="/descargas" element={<Descargas />} />
+        {/* Referencia pública de la API: sin sesión y sin enlace desde los menús */}
+        <Route path="/docs" element={<Docs />} />
 
         <Route element={<RutaProtegida />}>
           <Route element={<PanelLayout />}>
